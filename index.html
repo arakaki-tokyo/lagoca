@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Google Calendar API Quickstart</title>
+  <meta charset="utf-8" />
+  <script defer src="proc.js"></script>
+  <script defer src="https://apis.google.com/js/api.js"></script>
+  <script defer src="cal.js"></script>
+</head>
+
+<body>
+
+  <p>Google Calendar API Quickstart</p>
+  <!-- to be editted start -->
+  <!--Add buttons to initiate auth sequence and sign out-->
+  <button id="authorize_button" style="display: none">Authorize</button>
+  <button id="signout_button" style="display: none">Sign Out</button>
+  
+  <pre id="content" style="white-space: pre-wrap"></pre>
+  <!-- to be editted end -->
+
+  <div id="doing">
+    <div id="elapsed"></div>
+    <input type="text" id="description">
+    <button id="end_button">end</button>
+  </div>
+  <div id="start_task">
+    <input type="text" id="summary">
+    <button id="start_button" value="test">start</button>
+  </div>
+  <div id="done"></div>
+  <div id="upcomming"></div>
+  <div id="todo"></div>
+</body>
+
+</html>
