@@ -363,15 +363,16 @@ function listDoneTask() {
   let HTML = "";
   env.doneTask.list.forEach(task => {
     HTML += `
-    <div class="card" style="width:130px;display:inline-block;">
+    <div class="card ${env.isSignedIn && task.isSynced?"":"has-background-danger-light"}" style="width:130px;display:inline-block;">
       <header class="card-header is-size-7">
         <p class="card-header-title p-1">${task.summary}</p>
       </header>
       <div class="card-content p-0">
         <time class="px-1 is-size-7">${new MyDate(task.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(task.end).strftime("%H:%M")}</time>
-        <textarea class="textarea has-fixed-size is-size-7" readonly tabindex="-1" style="pointer-events: none;">${task.description}</textarea>
+        <textarea class="textarea has-fixed-size is-size-7 ${env.isSignedIn && task.isSynced?"":"has-background-danger-light"}" readonly tabindex="-1" style="pointer-events: none;">${task.description}</textarea>
       </div>
       <div class="card-footer">
+        ${env.isSignedIn && task.isSynced?"":'<button class="sync_button card-footer-item button is-small is-danger is-outlined is-rounded">Sync</button>'}
         <button class="restart_button card-footer-item button is-small is-primary is-outlined is-rounded">restart</button>
       </div>
     </div>
@@ -412,7 +413,7 @@ function handleStartClick() {
       .catch(err => {
         console.log(err);
         env.doingTask.isSynced = false;
-        handleRejectedCommon();
+        handleRejectedCommon(err);
       })
       .then(() => {
         console.log("finally.")
@@ -451,7 +452,7 @@ function handleEndClick() {
         .catch(err => {
           console.log(err);
           env.doingTask.isSynced = false;
-          handleRejectedCommon();
+          handleRejectedCommon(err);
         })
         .then(() => {
           // finally
