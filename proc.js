@@ -22,7 +22,7 @@ const env = {
     description: ""
   },
   doneTask: {
-    maxIndex: 5,
+    maxIndex: 10,
     list: new Array()
   }
 };
