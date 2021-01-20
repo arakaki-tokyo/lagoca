@@ -351,6 +351,14 @@ function initializeSettings() {
   document.settings.event_color.value = env.settings.colorId;
 };
 
+function addDoneTaskList(doneTask){
+  env.doneTask.list.unshift(doneTask);
+  if (env.doneTask.list.length > env.doneTask.maxIndex)
+    env.doneTask.list.pop();
+  listDoneTask();
+  localStorage.setItem(lsKeys.doneTask, JSON.stringify(env.doneTask));
+}
+
 function listDoneTask() {
   let HTML = "";
   env.doneTask.list.forEach(task => {
@@ -404,11 +412,7 @@ function handleStartClick() {
       .catch(err => {
         console.log(err);
         env.doingTask.isSynced = false;
-        if (err.status == 404) {
-          pushNotification("Googleカレンダーに追加できませんでした。<br>カレンダー名を確認してください。");
-        } else {
-          pushNotification("Googleカレンダーに追加できませんでした。<br>通信状態を確認してください。");
-        }
+        handleRejectedCommon();
       })
       .then(() => {
         console.log("finally.")
@@ -431,30 +435,28 @@ function handleEndClick() {
   env.doingTask.description = description;
   env.doingTask.end = end.getTime();
   if (env.isSignedIn) {
-    updateEvent({
-      'summary': `${summary} (${nodes.elapsed.getAttribute("elapsed")})`,
-      'description': description,
-      'start': start.toISOString(),
-      'end': end.toISOString()
-    })
-      .then(res => {
-        console.log(res);
-        env.doingTask.isSynced = true;
-      })
-      .catch(err => {
-        env.doingTask.isSynced = false;
-        handleRejectedCommon(err);
-      })
-      .then(() => {
-        // finally
-        env.doneTask.list.unshift({ ...env.doingTask });
+      const syncMethod = env.doingTask.isSynced? updateEvent: insertEvent;
 
-        if (env.doneTask.list.length > env.doneTask.maxIndex)
-          env.doneTask.list.pop();
-        listDoneTask();
-        localStorage.setItem(lsKeys.doneTask, JSON.stringify(env.doneTask));
-
+      syncMethod({
+        'summary': `${summary} (${nodes.elapsed.getAttribute("elapsed")})`,
+        'description': description,
+        'start': start.toISOString(),
+        'end': end.toISOString()
       })
+        .then(res => {
+          console.log(res);
+          env.doingTask.isSynced = true;
+          env.doingTask.id = res.result.id;
+        })
+        .catch(err => {
+          console.log(err);
+          env.doingTask.isSynced = false;
+          handleRejectedCommon();
+        })
+        .then(() => {
+          // finally
+          addDoneTaskList({ ...env.doingTask });
+        });
   } else {
     // no log-in user
   }
