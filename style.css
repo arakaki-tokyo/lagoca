@@ -1,0 +1,37 @@
+html, body{
+    height: 100%;
+}
+input[name="event_color"]{
+    display: none;
+}
+input[name="event_color"] + label{
+    display: inline-block;
+    width: 1.4rem;
+    height: 1.4rem;
+    margin: 0 0.2rem;
+    border:solid 3px;
+    border-radius: 50%;
+    line-height: 1rem;
+    box-sizing: border-box;
+    text-align: center;
+    vertical-align: middle;
+}
+input[name="event_color"]:checked + label{
+    border:solid 0.71rem;
+}
+
+#done{
+    overflow-x: scroll;
+    white-space: nowrap;
+}
+
+#notification{
+    position: fixed;
+    bottom:-130px;
+    left: 0;
+    right: 0;
+    margin: 1rem auto;
+    opacity: 0.7;
+    max-width: 350px;
+    transition-duration: 500ms;
+}

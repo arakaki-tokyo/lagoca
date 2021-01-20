@@ -2,36 +2,126 @@
 <html>
 
 <head>
-  <title>Google Calendar API Quickstart</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta charset="utf-8" />
+  <title>Google Calendar API Quickstart</title>
   <script defer src="proc.js"></script>
-  <script defer src="https://apis.google.com/js/api.js"></script>
-  <script defer src="cal.js"></script>
+  <script defer src="https://apis.google.com/js/api.js" onload="handleClientLoad()"></script>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css">
 </head>
 
 <body>
 
-  <p>Google Calendar API Quickstart</p>
-  <!-- to be editted start -->
-  <!--Add buttons to initiate auth sequence and sign out-->
-  <button id="authorize_button" style="display: none">Authorize</button>
-  <button id="signout_button" style="display: none">Sign Out</button>
-  
-  <pre id="content" style="white-space: pre-wrap"></pre>
-  <!-- to be editted end -->
-
-  <div id="doing">
-    <div id="elapsed"></div>
-    <input type="text" id="description">
-    <button id="end_button">end</button>
+  <section class="hero is-light" style="height:100%">
+    <div class="hero-head">
+      <nav class="navbar">
+        <div class="navbar-brand is-pulled-left">
+          <img src="img/logo.svg" width="110px">
+        </div>
+        <div class="navbar-menu is-active">
+          <div class="navbar-end  is-flex is-flex-direction-row-reverse">
+            <button id="open_settings" class="button is-light">⚙️</button>
+          </div>
+        </div>
+      </nav>
+    </div>
+    <div class="hero-body">
+      <div class="container">
+        <div id="doing" class="is-clearfix">
+          <input type="text" id="summary" class="input" placeholder="title">
+          <textarea id="description" class="textarea has-fixed-size" placeholder="description"></textarea>
+          <div class="is-pulled-left">
+            <div id="elapsed" class="is-size-1 has-text-weight-bold mx-1">00:00:00</div>
+          </div>
+          <div class="is-pulled-right">
+            <button id="end_button" style="width:100px" class="button is-danger is-large has-text-weight-bold m-1 is-hidden">end</button>
+            <button id="start_button" style="width:100px" class="button is-primary is-large has-text-weight-bold m-1 is-hidden">start</button>
+          </div>
+        </div>
+        <div id="done"></div>
+        <div id="upcomming"></div>
+        <div id="todo"></div>
+      </div>
+    </div>
+    <div class="hero-foot">
+      footer
+    </div>
+  </section>
+  <div id="settings_modal" class="modal">
+    <div id="bg_settings" class="modal-background"></div>
+    <div class="modal-card">
+      <header class="modal-card-head">
+        <p class="modal-card-title">Settings</p>
+        <button id="close_settings" class="delete" aria-label="close"></button>
+      </header>
+      <section class="modal-card-body">
+        <div id="isnot_signedin" class="is-hidden">
+          <button id="authorize_button" class="button is-link">Googleカレンダーにサインイン</button>
+        </div>
+        <div id="is_signedin" class="is-hidden">
+          <div class="field">
+            <label class="label">User Profile</label>
+            <div id="user_profile" class="control is-flex is-justify-content-center">
+              <figure class="image is-48x48">
+                <img id="user_img" class="is-rounded">
+              </figure>
+              <div class="tags has-addons">
+                <span id="user_email" class="tag is-dark"></span>
+                <button id="signout_button" class="tag is-light is-clickable">SignOut</button>
+              </div>
+            </div>
+          </div>
+          <form name="settings">
+            <div class="field">
+              <label class="label">予定を取得するカレンダー</label>
+              <div claass="control">
+                <label class="checkbox"><input type="checkbox" id="enable_getting_upcoming">予定の取得を有効化</label>
+                <input id="upcoming_calendar_id" type="text" list="ci_list" value="default" class="input" autocomplete="off" disabled>
+                <datalist id="ci_list">
+                  <option value="default"></option>
+                </datalist>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">ログを記録するカレンダー</label>
+              <div claass="control">
+                <input id="calendar_id" type="text" list="ci_list" value="default" class="input" autocomplete="off">
+                <datalist id="ci_list">
+                  <option value="default"></option>
+                </datalist>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">Event Color</label>
+              <div class="control is-flex is-justify-content-center">
+                <input type="radio" value="1" name="event_color" id="ec1" checked><label for="ec1" style="color:#a4bdfc;"></label>
+                <input type="radio" value="2" name="event_color" id="ec2"><label for="ec2" style="color:#7ae7bf;"></label>
+                <input type="radio" value="3" name="event_color" id="ec3"><label for="ec3" style="color:#dbadff;"></label>
+                <input type="radio" value="4" name="event_color" id="ec4"><label for="ec4" style="color:#ff887c;"></label>
+                <input type="radio" value="5" name="event_color" id="ec5"><label for="ec5" style="color:#fbd75b;"></label>
+                <input type="radio" value="6" name="event_color" id="ec6"><label for="ec6" style="color:#ffb878;"></label>
+                <input type="radio" value="7" name="event_color" id="ec7"><label for="ec7" style="color:#46d6db;"></label>
+                <input type="radio" value="8" name="event_color" id="ec8"><label for="ec8" style="color:#e1e1e1;"></label>
+                <input type="radio" value="9" name="event_color" id="ec9"><label for="ec9" style="color:#5484ed;"></label>
+                <input type="radio" value="10" name="event_color" id="ec10"><label for="ec10" style="color:#51b749;"></label>
+                <input type="radio" value="11" name="event_color" id="ec11"><label for="ec11" style="color:#dc2127;"></label>
+              </div>
+            </div>
+          </form>
+        </div>
+      </section>
+      <footer class="modal-card-foot">
+        <button id="settings_save_button" class="button is-link is-hidden">保存</button>
+        <button id="settings_cancel_button" class="button is-link is-light">キャンセル</button>
+      </footer>
+    </div>
   </div>
-  <div id="start_task">
-    <input type="text" id="summary">
-    <button id="start_button" value="test">start</button>
-  </div>
-  <div id="done"></div>
-  <div id="upcomming"></div>
-  <div id="todo"></div>
-</body>
+  <article id="notification" class="message is-danger">
+    <div class="message-header p-1 is-size-7">
+      <p>Notice!</p>
+    </div>
+    <div id="notification_text" class="message-body p-3 is-size-7"></div>
+  </article></body>
 
 </html>
