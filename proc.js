@@ -59,11 +59,11 @@ const nodes = {
   userImg: $("user_img")
 };
 // Client ID and API key from the Developer Console
-var CLIENT_ID = '832522276123-aqt7vhfu2jaauqc763crddqknl48s9fo.apps.googleusercontent.com';
-var API_KEY = 'AIzaSyBWlwZoS4TgRDg-6uuINYlCvphULiUL6no';
+const CLIENT_ID = '832522276123-aqt7vhfu2jaauqc763crddqknl48s9fo.apps.googleusercontent.com';
+const API_KEY = 'AIzaSyBWlwZoS4TgRDg-6uuINYlCvphULiUL6no';
 
 // Array of API discovery doc URLs for APIs used by the quickstart
-var DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
+const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
 
 // Authorization scopes required by the API; multiple scopes can be
 // included, separated by spaces.
@@ -86,9 +86,11 @@ function initClient() {
     clientId: CLIENT_ID,
     discoveryDocs: DISCOVERY_DOCS,
     scope: SCOPES
-  }).then(function () {
-    myInit();
-  }, function (error) {
+  })
+  .then(myInit)
+  .catch( error => {
+    pushNotification("Some fatal errors occurred.<br>Try reloading this page.", 1_000_000);
+    console.log(error);
   });
 };
 
@@ -132,12 +134,12 @@ function toggleTaskStatus(isDoing) {
   }
 }
 
-function pushNotification(message) {
+function pushNotification(message, duration = 5000) {
   nodes.notificationText.innerHTML = message;
   nodes.notification.style.transform = "translateY(-130px)";
   setTimeout(() => {
     nodes.notification.style.transform = "";
-  }, 5000);
+  }, duration);
 }
 // proc
 // pereodic
