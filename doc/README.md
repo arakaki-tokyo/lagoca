@@ -29,14 +29,13 @@ APIの応答によって以下のいずれかとなる。
 
 ![](img/start_sequence-page2.png)
 
-#### 2. fetch G-cal
+#### 2. fetch doingTask in G-cal
 ##### 処理
-- グローバルオブジェクトの更新
-- viewの更新
-- ローカルストレージにdoingTaskをセット
+- ローカルで未同期の実行中タスクをG-calに同期する
+  - タスクの状態: ① → ②
+- G-calから実行中タスクを取得する
+  - タスクの状態: ②
 
-##### タスクの状態
-同期済みの実行中タスクを取得するため②Syncedである。
 ![](img/start_sequence-page3.png)
 
 #### 3. read local-strage
@@ -51,39 +50,39 @@ APIの応答によって以下のいずれかとなる。
 
 ![](img/start_sequence-page4.png)
 
-### start sequence
+
+### end sequence
+#### 1. click end-button
+
+##### 処理
+- グローバルオブジェクト(doingTask)の更新
+- viewの更新
+- API call
+- グローバルオブジェクト(doneTask)の更新
+- viewの更新(doneTaskList)
+- ローカルストレージからdoingTaskを削除
+- ローカルストレージにdoneTaskをセット
+
+##### タスクの状態
+実行中のタスクの状態、APIの応答によって以下のいずれかとなる。(ref. state diagram)
+- ① → ③
+- ① → ④
+- ② → ③
+- ② → ④
+
+※同期済み実行中タスクが非同期で終了された場合(② → ③)は周期処理で同期を試みる。(ref. [2. fetch doneTask in G-cal](#2-fetch-donetask-in-g-cal))
+![](img/end_sequence-page2.png)
+
+#### 2. fetch doneTask in G-cal
+##### 処理
+- ローカルで実行中のタスクが他IFから終了されていないか確認する
+  - タスクの状態：② → ④
+- ローカルで終了済み(未同期)のタスクをG-calに同期する
+  - タスクの状態：③ → ④
 
 
 
-
-| function               | promise |
-| ---------------------- | ------- |
-| handleClientLoad       | -       |
-| initClient             | -       |
-| initializeStyleHandler | -       |
-| toggleTaskStatus       | -       |
-| pushNotification       | -       |
-| timer60s               | o       |
-| checkDoingTask         | o       |
-| updateSigninStatus     |         |
-| getEvent               |         |
-| listEvent              |         |
-| insertEvent            |         |
-| updateEvent            |         |
-| listCalendar           |         |
-| insertCalendar         |         |
-| handleRejectedCommon   |         |
-| timeDoingTask          |         |
-| doTime                 | -       |
-| initializeSettings     |         |
-| addDoneTaskList        | -       |
-| listDoneTask           | -       |
-| handleStartClick       | o       |
-| handleEndClick         | o       |
-| saveSettings           |         |
-| handleAuthClick        |         |
-| handleSignoutClick     |         |
-| myInit                 |         |
+![](img/end_sequence-page3.png)
 
 
 

@@ -27,7 +27,7 @@ note over q
     * env.doingTask.end
 end note
 q -> q: toggleTaskStatus(false)
-note right
+note left
     view更新
 end note
 activate q
@@ -231,39 +231,5 @@ else env.isDoing == false
 ' editting
 
 end
-newpage end_sequence 3
-== read local-strage then end ==
-u -> h: ページロード(初期化処理)
-activate h
-note over h
-ローカルストレージから
-**doingTask**をゲット
-end note
-alt doingTask is preserved in localStrage
-    note over h
-        envに以下設定
-        --
-        * env.isDoing = true;
-        * env.doingTask = JSON.parse(doingTask);
-    end note
-    note over h
-        タスク概要と説明を表示
-        nodes.inputSummary.value = env.doingTask.summary;
-        nodes.inputDescription.value = env.doingTask.description;
-    end note
-    h -> h: toggleTaskStatus(true)
-    activate h
-    h -> t: 経過時間の表示開始
-    deactivate h
-    activate t
-    loop env.isDoing == true
-        t -> t
-        activate t
-    end loop
-    deactivate t
-    deactivate t
-end
-deactivate h
-
 
     @enduml
