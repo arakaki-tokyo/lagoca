@@ -204,6 +204,15 @@ function checkDoingTask() {
     })
 };
 
+/**
+ * 周期的に以下の処理を行う
+ * - ローカルで実行中のタスクがある場合
+ *  - Gcalに同期済み：他IFから終了されていないかチェック
+ *  - Gcalに未同期：Gcalに同期実施
+ * - ローカルで実行中のタスクがない場合
+ *  - Gcalに同期済み実行中タスクがないかチェック
+ *
+ */
 function periodicProc() {
   if (env.isDoing) {
     if (env.doingTask.isSynced) {
@@ -253,7 +262,20 @@ function timer60s() {
   setTimeout(timer60s, 60_000);
 };
 // util
+/**
+ * @classdesc implemented some additional methods
+ * - strftime()
+ * @class MyDate
+ * @extends {Date}
+ */
 class MyDate extends Date {
+  /**
+   *
+   * @param {string} fmt 日時のフォーマット文字列。
+   * [書式コード](https://docs.python.org/ja/3/library/datetime.html#strftime-and-strptime-format-codes)の一部を実装
+   * @return {string} フォーマット済み文字列
+   * @memberof MyDate
+   */
   strftime(fmt) {
     return fmt
       .replaceAll("%Y", String(this.getFullYear()))
@@ -268,8 +290,11 @@ class MyDate extends Date {
 
 
 /**
- *  Called when the signed in status changes, to update the UI
+ * quoted from official example -- 
+ * Called when the signed in status changes, to update the UI
  *  appropriately. After a sign-in, the API is called.
+ *
+ * @param {boolean} isSignedIn
  */
 function updateSigninStatus(isSignedIn) {
   env.isSignedIn = isSignedIn;
@@ -288,6 +313,13 @@ function updateSigninStatus(isSignedIn) {
   }
 }
 
+/**
+ * API wrapper
+ *
+ * @param {object} object
+ * @param {string} object.eventId
+ * @return {PromiseLike} 
+ */
 function getEvent({ eventId }) {
   return gapi.client.calendar.events.get({
     calendarId: env.settings.calendarId,
@@ -295,6 +327,14 @@ function getEvent({ eventId }) {
   });
 }
 
+/**
+ * API wrapper
+ *
+ * @param {object} object
+ * @param {string} object.timeMax - ISO format
+ * @param {string} object.timeMin - ISO format
+ * @return {PromiseLike} 
+ */
 function listEvent({ timeMax, timeMin }) {
   return gapi.client.calendar.events.list({
     calendarId: env.settings.calendarId,
@@ -303,6 +343,16 @@ function listEvent({ timeMax, timeMin }) {
   });
 }
 
+/**
+ * API wrapper
+ *
+ * @param {object} object
+ * @param {string} [object.summary]
+ * @param {string} [object.description]
+ * @param {string} object.start
+ * @param {string} object.end
+ * @return {PromiseLike} 
+ */
 function insertEvent({ summary = "", description = "", start, end }) {
 
   return gapi.client.calendar.events.insert({
@@ -323,6 +373,17 @@ function insertEvent({ summary = "", description = "", start, end }) {
   });
 }
 
+/**
+ * API wrapper
+ *
+ * @param {object} object
+ * @param {string} object.eventId
+ * @param {string} [object.summary]
+ * @param {string} [object.description]
+ * @param {string} object.start
+ * @param {string} object.end
+ * @return {PromiseLike} 
+ */
 function updateEvent({ eventId, summary = "", description = "", start, end }) {
   return gapi.client.calendar.events.update({
     calendarId: env.settings.calendarId,
@@ -343,10 +404,21 @@ function updateEvent({ eventId, summary = "", description = "", start, end }) {
   });
 }
 
+/**
+ * API wrapper
+ * @return {PromiseLike} 
+ */
 function listCalendar() {
   return gapi.client.calendar.calendarList.list();
 }
 
+/**
+ * API wrapper
+ *
+ * @param {object} object
+ * @param {string} object.summary
+ * @return {PromiseLike} 
+ */
 function insertCalendar({ summary }) {
   return gapi.client.calendar.calendars.insert({
     summary,
@@ -354,6 +426,10 @@ function insertCalendar({ summary }) {
   });
 }
 
+/**
+ *
+ * @param {object} err result when google API is rejected 
+ */
 function handleRejectedCommon(err) {
   console.log(err);
   if (err.status == 400) {
@@ -430,6 +506,11 @@ function endTaskPostProcCommon() {
   // remove doingTask from localStorage
   localStorage.removeItem(lsKeys.doingTask);
 }
+// event handlers
+/**
+ * handler for start button clicked
+ *
+ */
 function handleStartClick() {
   Queue.add(() => {
     const summary = nodes.inputSummary.value;
@@ -469,6 +550,10 @@ function handleStartClick() {
   });
 }
 
+/**
+ * handler for end button clicked
+ *
+ */
 function handleEndClick() {
   Queue.add(() => {
 
