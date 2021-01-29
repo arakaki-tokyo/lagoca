@@ -66,7 +66,18 @@ const nodes = {
   userImg: $("user_img")
 };
 
-[Queue, env, lsKeys, nodes].forEach(obj => Object.seal(obj));
+function sealObjects(){
+  [
+    Queue, 
+    env, 
+    env.settings,
+    env.settings.gettingUpcoming,
+    env.doingTask,
+    env.doneTask,
+    lsKeys, 
+    nodes
+  ].forEach(obj => Object.seal(obj));
+}
 // Client ID and API key from the Developer Console
 const CLIENT_ID = '832522276123-aqt7vhfu2jaauqc763crddqknl48s9fo.apps.googleusercontent.com';
 const API_KEY = 'AIzaSyBWlwZoS4TgRDg-6uuINYlCvphULiUL6no';
@@ -101,7 +112,7 @@ function initClient() {
       pushNotification("Some fatal errors occurred.<br>Try reloading this page.", 1_000_000);
       console.log(error);
     });
-};
+}
 
 
 
@@ -129,7 +140,7 @@ function initializeStyleHandler() {
   nodes.enableGettingUpcoming.addEventListener("input", function () {
     nodes.upcomingCalendarId.disabled = !this.checked;
   })
-};
+}
 
 function toggleTaskStatus(isDoing) {
   if (isDoing) {
@@ -194,7 +205,7 @@ function checkDoingTask() {
         env.doingTask.start = (new Date(resDoingTask.start.dateTime)).getTime();
         env.doingTask.end = (new Date(resDoingTask.end.dateTime)).getTime();
         nodes.inputSummary.value = env.doingTask.summary = resDoingTask.summary;
-        nodes.inputDescription.value = env.doneTask.description = resDoingTask.description;
+        nodes.inputDescription.value = env.doingTask.description = resDoingTask.description;
         toggleTaskStatus(true);
         localStorage.setItem(lsKeys.doingTask, JSON.stringify(env.doingTask));
       }
@@ -202,7 +213,7 @@ function checkDoingTask() {
     .catch(err => {
       handleRejectedCommon(err);
     })
-};
+}
 
 /**
  * 周期的に以下の処理を行う
@@ -253,14 +264,14 @@ function periodicProc() {
   } else {
     return checkDoingTask();
   }
-};
+}
 
 function timer60s() {
   if (!env.isSignedIn) return;
 
   Queue.add(periodicProc);
   setTimeout(timer60s, 60_000);
-};
+}
 // util
 /**
  * @classdesc implemented some additional methods
@@ -466,7 +477,7 @@ function initializeSettings() {
   nodes.upcomingCalendarId.disabled = !nodes.enableGettingUpcoming.checked;
   nodes.inputCalendarSummary.value = env.settings.calendarSummary;
   document.settings.event_color.value = env.settings.colorId;
-};
+}
 
 function addDoneTaskList(doneTask) {
   env.doneTask.list.unshift(doneTask);
@@ -712,6 +723,7 @@ function myInit() {
     toggleTaskStatus(false);
   }
 
+  sealObjects();
   initializeStyleHandler();
   nodes.startButton.addEventListener("click", handleStartClick);
   nodes.endButton.addEventListener("click", handleEndClick);
