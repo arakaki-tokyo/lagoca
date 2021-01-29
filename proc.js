@@ -1,5 +1,11 @@
 'use strict';
 // global values
+const Queue = {
+  _queue: Promise.resolve(true),
+  add(f) {
+    this._queue = this._queue.then(f);
+  }
+};
 const env = {
   isSignedIn: null,
   isDoing: false,
@@ -18,6 +24,7 @@ const env = {
     id: null,
     start: null,
     end: null,
+    elapsedTime: "",
     summary: "",
     description: ""
   },
@@ -36,7 +43,7 @@ const nodes = {
 
   authorizeBtn: $('authorize_button'),
   bgSettings: $("bg_settings"),
-  inputCalendarId: $("calendar_id"),
+  inputCalendarSummary: $("calendar_id"),
   inputDescription: $("description"),
   closeSettings: $("close_settings"),
   doneArea: $("done"),
@@ -58,12 +65,25 @@ const nodes = {
   userEmail: $("user_email"),
   userImg: $("user_img")
 };
+
+function sealObjects(){
+  [
+    Queue, 
+    env, 
+    env.settings,
+    env.settings.gettingUpcoming,
+    env.doingTask,
+    env.doneTask,
+    lsKeys, 
+    nodes
+  ].forEach(obj => Object.seal(obj));
+}
 // Client ID and API key from the Developer Console
-var CLIENT_ID = '832522276123-aqt7vhfu2jaauqc763crddqknl48s9fo.apps.googleusercontent.com';
-var API_KEY = 'AIzaSyBWlwZoS4TgRDg-6uuINYlCvphULiUL6no';
+const CLIENT_ID = '832522276123-aqt7vhfu2jaauqc763crddqknl48s9fo.apps.googleusercontent.com';
+const API_KEY = 'AIzaSyBWlwZoS4TgRDg-6uuINYlCvphULiUL6no';
 
 // Array of API discovery doc URLs for APIs used by the quickstart
-var DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
+const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
 
 // Authorization scopes required by the API; multiple scopes can be
 // included, separated by spaces.
@@ -86,11 +106,13 @@ function initClient() {
     clientId: CLIENT_ID,
     discoveryDocs: DISCOVERY_DOCS,
     scope: SCOPES
-  }).then(function () {
-    myInit();
-  }, function (error) {
-  });
-};
+  })
+    .then(myInit)
+    .catch(error => {
+      pushNotification("Some fatal errors occurred.<br>Try reloading this page.", 1_000_000);
+      console.log(error);
+    });
+}
 
 
 
@@ -100,10 +122,13 @@ function initClient() {
 // function definition
 // design
 function initializeStyleHandler() {
+
+  // open settings
   nodes.openSettings.addEventListener("click", () => {
     nodes.settingsModal.classList.add("is-active");
   });
 
+  // close settings
   [nodes.closeSettings, nodes.bgSettings, nodes.settingsCancelButton].forEach(e => {
     e.addEventListener("click", () => {
       nodes.settingsModal.classList.remove("is-active");
@@ -111,10 +136,11 @@ function initializeStyleHandler() {
     })
   });
 
+  // enable or disable getting up-coming events
   nodes.enableGettingUpcoming.addEventListener("input", function () {
     nodes.upcomingCalendarId.disabled = !this.checked;
   })
-};
+}
 
 function toggleTaskStatus(isDoing) {
   if (isDoing) {
@@ -126,67 +152,104 @@ function toggleTaskStatus(isDoing) {
     nodes.startButton.classList.remove("is-hidden");
     nodes.inputSummary.value = "";
     nodes.inputDescription.value = "";
-
-    env.isDoing = false;
-    localStorage.removeItem(lsKeys.doingTask);
   }
 }
 
-function pushNotification(message) {
+function pushNotification(message, duration = 5000) {
   nodes.notificationText.innerHTML = message;
   nodes.notification.style.transform = "translateY(-130px)";
   setTimeout(() => {
     nodes.notification.style.transform = "";
-  }, 5000);
+  }, duration);
 }
 // proc
 // pereodic
-function timer60s() {
-  function checkDoingTask() {
-    if (!env.isSignedIn) return;
-    listEvent({
-      timeMax: new Date().toISOString(),
-      timeMin: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
+
+function checkDoingTask() {
+  return listEvent({
+    timeMax: new Date().toISOString(),
+    timeMin: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
+  })
+    .then(res => {
+      console.log(res);
+      const resDoingTaskIndex = res.result.items.findIndex(item => item.start.dateTime == item.end.dateTime);
+      if (resDoingTaskIndex > -1) {
+        const resDoingTask = res.result.items[resDoingTaskIndex];
+        const unsyncedIndex = env.doneTask.list.findIndex(task => task.id === resDoingTask.id);
+        if (unsyncedIndex > -1) {
+          const toSyncTask = env.doneTask.list[unsyncedIndex];
+          return updateEvent({
+            eventId: toSyncTask.id,
+            summary: `${toSyncTask.summary} (${toSyncTask.elapsedTime})`,
+            description: toSyncTask.description,
+            start: new Date(toSyncTask.start).toISOString(),
+            end: new Date(toSyncTask.end).toISOString()
+          })
+            .then(res => {
+              console.log(res);
+              env.doneTask.list.forEach(task => {
+                if (task.id === res.result.id) {
+                  task.isSynced = true;
+                  // update doneTaskList view
+                  listDoneTask();
+                  // set updated-doneTaskList to localStorage
+                  localStorage.setItem(lsKeys.doneTask, JSON.stringify(env.doneTask));
+                }
+              })
+            })
+            .catch(err => console.log(err));
+        }
+        env.isDoing = true;
+        env.doingTask.isSynced = true;
+        env.doingTask.id = resDoingTask.id;
+        env.doingTask.start = (new Date(resDoingTask.start.dateTime)).getTime();
+        env.doingTask.end = (new Date(resDoingTask.end.dateTime)).getTime();
+        nodes.inputSummary.value = env.doingTask.summary = resDoingTask.summary;
+        nodes.inputDescription.value = env.doingTask.description = resDoingTask.description;
+        toggleTaskStatus(true);
+        localStorage.setItem(lsKeys.doingTask, JSON.stringify(env.doingTask));
+      }
     })
-      .then(res => {
-        console.log(res);
-        res.result.items.forEach((item) => {
-          if (item.start.dateTime == item.end.dateTime) {
-            env.isDoing = true;
-            env.doneTask.isSynced = true;
-            env.doingTask.id = item.id;
-            env.doingTask.start = (new Date(item.start.dateTime)).getTime();
-            env.doingTask.end = (new Date(item.end.dateTime)).getTime();
-            nodes.inputSummary.value = env.doingTask.summary = item.summary;
-            nodes.inputDescription.value = env.doneTask.description = item.description;
-            toggleTaskStatus(true);
-          }
-        });
-      })
-      .catch(err => {
-        handleRejectedCommon(err);
-      })
-  }
-  // check if doingTask has been done
+    .catch(err => {
+      handleRejectedCommon(err);
+    })
+}
+
+/**
+ * 周期的に以下の処理を行う
+ * - ローカルで実行中のタスクがある場合
+ *  - Gcalに同期済み：他IFから終了されていないかチェック
+ *  - Gcalに未同期：Gcalに同期実施
+ * - ローカルで実行中のタスクがない場合
+ *  - Gcalに同期済み実行中タスクがないかチェック
+ *
+ */
+function periodicProc() {
   if (env.isDoing) {
     if (env.doingTask.isSynced) {
-      getEvent(env.doingTask.id)
+      // check if doingTask has been done
+      return getEvent({ eventId: env.doingTask.id })
         .then(res => {
           if (res.result.start.dateTime != res.result.end.dateTime) {
+            env.isDoing = false;
+            env.doingTask.summary = res.result.summary;
+            env.doingTask.description = res.result.description;
             env.doingTask.end = (new Date(res.result.end.dateTime)).getTime();
-            toggleTaskStatus(false);
-            checkDoingTask();
+            toggleTaskStatus(env.isDoing);
+            endTaskPostProcCommon();
+            return checkDoingTask();
           }
         })
         .catch(err => {
           handleRejectedCommon(err);
         });
     } else {
-      insertEvent({
-        'summary': env.doingTask.summary,
-        'description': env.doingTask.description,
-        'start': new Date(env.doingTask.start).toISOString(),
-        'end': new Date(env.doingTask.end).toISOString(),
+      // doingTask haven't been synced yet, so try to sync.
+      return insertEvent({
+        summary: env.doingTask.summary,
+        description: env.doingTask.description,
+        start: new Date(env.doingTask.start).toISOString(),
+        end: new Date(env.doingTask.end).toISOString(),
       })
         .then(res => {
           console.log(res)
@@ -196,23 +259,41 @@ function timer60s() {
         })
         .catch(err => {
           handleRejectedCommon(err);
-        })
+        });
     }
   } else {
-    checkDoingTask();
+    return checkDoingTask();
   }
-  setTimeout(() => {
-    timer60s();
-  }, 60_000);
+}
+
+function timer60s() {
+  if (!env.isSignedIn) return;
+
+  Queue.add(periodicProc);
+  setTimeout(timer60s, 60_000);
 }
 // util
+/**
+ * @classdesc implemented some additional methods
+ * - strftime()
+ * @class MyDate
+ * @extends {Date}
+ */
 class MyDate extends Date {
+  /**
+   *
+   * @param {string} fmt 日時のフォーマット文字列。
+   * [書式コード](https://docs.python.org/ja/3/library/datetime.html#strftime-and-strptime-format-codes)の一部を実装
+   * @return {string} フォーマット済み文字列
+   * @memberof MyDate
+   */
   strftime(fmt) {
     return fmt
       .replaceAll("%Y", String(this.getFullYear()))
       .replaceAll("%m", ("0" + (this.getMonth() + 1)).slice(-2))
       .replaceAll("%d", ("0" + this.getDate()).slice(-2))
       .replaceAll("%H", ("0" + this.getHours()).slice(-2))
+      .replaceAll("%h", ("0" + this.getUTCHours()).slice(-2))
       .replaceAll("%M", ("0" + this.getMinutes()).slice(-2))
       .replaceAll("%S", ("0" + this.getSeconds()).slice(-2));
   }
@@ -220,8 +301,11 @@ class MyDate extends Date {
 
 
 /**
- *  Called when the signed in status changes, to update the UI
+ * quoted from official example -- 
+ * Called when the signed in status changes, to update the UI
  *  appropriately. After a sign-in, the API is called.
+ *
+ * @param {boolean} isSignedIn
  */
 function updateSigninStatus(isSignedIn) {
   env.isSignedIn = isSignedIn;
@@ -240,21 +324,46 @@ function updateSigninStatus(isSignedIn) {
   }
 }
 
-function getEvent(id) {
+/**
+ * API wrapper
+ *
+ * @param {object} object
+ * @param {string} object.eventId
+ * @return {PromiseLike} 
+ */
+function getEvent({ eventId }) {
   return gapi.client.calendar.events.get({
     calendarId: env.settings.calendarId,
-    eventId: id,
+    eventId
   });
 }
 
+/**
+ * API wrapper
+ *
+ * @param {object} object
+ * @param {string} object.timeMax - ISO format
+ * @param {string} object.timeMin - ISO format
+ * @return {PromiseLike} 
+ */
 function listEvent({ timeMax, timeMin }) {
   return gapi.client.calendar.events.list({
-    'calendarId': env.settings.calendarId,
-    'timeMax': timeMax,
-    'timeMin': timeMin,
+    calendarId: env.settings.calendarId,
+    timeMax,
+    timeMin
   });
 }
 
+/**
+ * API wrapper
+ *
+ * @param {object} object
+ * @param {string} [object.summary]
+ * @param {string} [object.description]
+ * @param {string} object.start
+ * @param {string} object.end
+ * @return {PromiseLike} 
+ */
 function insertEvent({ summary = "", description = "", start, end }) {
 
   return gapi.client.calendar.events.insert({
@@ -275,13 +384,24 @@ function insertEvent({ summary = "", description = "", start, end }) {
   });
 }
 
-function updateEvent({ summary = "", description = "", start, end, callback }) {
+/**
+ * API wrapper
+ *
+ * @param {object} object
+ * @param {string} object.eventId
+ * @param {string} [object.summary]
+ * @param {string} [object.description]
+ * @param {string} object.start
+ * @param {string} object.end
+ * @return {PromiseLike} 
+ */
+function updateEvent({ eventId, summary = "", description = "", start, end }) {
   return gapi.client.calendar.events.update({
     calendarId: env.settings.calendarId,
-    eventId: env.doingTask.id,
+    eventId,
     resource: {
-      summary: summary,
-      description: description,
+      summary,
+      description,
       start: {
         dateTime: start,
         timeZone: "Asia/Tokyo",
@@ -295,31 +415,39 @@ function updateEvent({ summary = "", description = "", start, end, callback }) {
   });
 }
 
-function listCalendar(callback) {
-  if (!env.isSignedIn) return;
-  gapi.client.calendar.calendarList
-    .list()
-    .then(callback);
+/**
+ * API wrapper
+ * @return {PromiseLike} 
+ */
+function listCalendar() {
+  return gapi.client.calendar.calendarList.list();
 }
 
-function insertCalendar({ summary, callback }) {
-  if (!env.isSignedIn) return;
-  gapi.client.calendar.calendars
-    .insert({
-      'summary': summary,
-      'discription': "created by LoGoCa"
-    })
-    .then(callback);
+/**
+ * API wrapper
+ *
+ * @param {object} object
+ * @param {string} object.summary
+ * @return {PromiseLike} 
+ */
+function insertCalendar({ summary }) {
+  return gapi.client.calendar.calendars.insert({
+    summary,
+    discription: "created by LoGoCa"
+  });
 }
 
+/**
+ *
+ * @param {object} err result when google API is rejected 
+ */
 function handleRejectedCommon(err) {
-  if(err.status == 400) {
-    console.log(err);
-  }
-  else if (err.status == 404) {
+  console.log(err);
+  if (err.status == 400) {
+    // do nothing
+  } else if (err.status == 404) {
     pushNotification("Googleカレンダーにアクセスできませんでした。<br>カレンダー名を確認してください。");
   } else {
-    console.log(err);
     pushNotification("Googleカレンダーにアクセスできませんでした。<br>通信状態を確認してください。");
   }
 }
@@ -332,7 +460,7 @@ function timeDoingTask() {
     const m = Math.floor(elapsedTime / 60) % 60;
     const s = elapsedTime % 60;
     nodes.elapsed.innerHTML = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-    nodes.elapsed.setAttribute("elapsed", `${h == 0 ? "" : h + "h"}${m}m`);
+    env.doingTask.elapsedTime = `${h == 0 ? "" : h + "h"}${m}m`;
   }
   if (env.isDoing) {
     doTime(new Date());
@@ -347,16 +475,14 @@ function initializeSettings() {
   nodes.upcomingCalendarId.value = env.settings.gettingUpcoming.upcomingCalendarSummary;
 
   nodes.upcomingCalendarId.disabled = !nodes.enableGettingUpcoming.checked;
-  nodes.inputCalendarId.value = env.settings.calendarSummary;
+  nodes.inputCalendarSummary.value = env.settings.calendarSummary;
   document.settings.event_color.value = env.settings.colorId;
-};
+}
 
-function addDoneTaskList(doneTask){
+function addDoneTaskList(doneTask) {
   env.doneTask.list.unshift(doneTask);
   if (env.doneTask.list.length > env.doneTask.maxIndex)
     env.doneTask.list.pop();
-  listDoneTask();
-  localStorage.setItem(lsKeys.doneTask, JSON.stringify(env.doneTask));
 }
 
 function listDoneTask() {
@@ -381,69 +507,97 @@ function listDoneTask() {
   nodes.doneArea.innerHTML = HTML;
 
 }
-// call by event
-function handleStartClick() {
-  // get title
-  const summary = nodes.inputSummary.value;
-  const description = nodes.inputDescription.value;
-  const now = new MyDate();
-  // save to web strage
-  // push to dcal
-  // hide start_task
-  // show   doing
-  env.isDoing = true;
-  env.doingTask.start = now.getTime();
-  env.doingTask.end = now.getTime();
-  env.doingTask.summary = summary;
-  env.doingTask.description = description;
-  toggleTaskStatus(true);
 
-  if (env.isSignedIn) {
-    insertEvent({
-      summary: summary,
-      description: description,
-      start: now.toISOString(),
-      end: now.toISOString(),
-    })
-      .then(res => {
-        console.log(res)
-        env.doingTask.isSynced = true;
-        env.doingTask.id = res.result.id;
+function endTaskPostProcCommon() {
+  // update doneTaskList
+  addDoneTaskList({ ...env.doingTask });
+  // update doneTaskList view
+  listDoneTask();
+  // set updated-doneTaskList to localStorage
+  localStorage.setItem(lsKeys.doneTask, JSON.stringify(env.doneTask));
+  // remove doingTask from localStorage
+  localStorage.removeItem(lsKeys.doingTask);
+}
+// event handlers
+/**
+ * handler for start button clicked
+ *
+ */
+function handleStartClick() {
+  Queue.add(() => {
+    const summary = nodes.inputSummary.value;
+    const description = nodes.inputDescription.value;
+    const now = new MyDate();
+    env.isDoing = true;
+    env.doingTask.isSynced = false;
+    env.doingTask.start = now.getTime();
+    env.doingTask.end = now.getTime();
+    env.doingTask.summary = summary;
+    env.doingTask.description = description;
+    toggleTaskStatus(env.isDoing);
+
+    if (env.isSignedIn) {
+      return insertEvent({
+        summary,
+        description,
+        start: now.toISOString(),
+        end: now.toISOString(),
       })
-      .catch(err => {
-        console.log(err);
-        env.doingTask.isSynced = false;
-        handleRejectedCommon(err);
-      })
-      .then(() => {
-        console.log("finally.")
-        localStorage.setItem(lsKeys.doingTask, JSON.stringify(env.doingTask));
-      });
-  } else {
-    localStorage.setItem(lsKeys.doingTask, JSON.stringify(env.doingTask));
-  }
+        .then(res => {
+          console.log(res)
+          env.doingTask.isSynced = true;
+          env.doingTask.id = res.result.id;
+        })
+        .catch(err => {
+          console.log(err);
+          handleRejectedCommon(err);
+        })
+        .then(() => {
+          localStorage.setItem(lsKeys.doingTask, JSON.stringify(env.doingTask));
+        });
+    } else {
+      localStorage.setItem(lsKeys.doingTask, JSON.stringify(env.doingTask));
+    }
+
+  });
 }
 
+/**
+ * handler for end button clicked
+ *
+ */
 function handleEndClick() {
-  
+  Queue.add(() => {
 
-  const start = new MyDate(env.doingTask.start);
-  const end = new MyDate();
-  const summary = nodes.inputSummary.value;
-  const description = nodes.inputDescription.value;
+    const start = new MyDate(env.doingTask.start);
+    const end = new MyDate();
+    const summary = nodes.inputSummary.value;
+    const description = nodes.inputDescription.value;
 
-  env.doingTask.summary = summary;
-  env.doingTask.description = description;
-  env.doingTask.end = end.getTime();
-  if (env.isSignedIn) {
-      const syncMethod = env.doingTask.isSynced? updateEvent: insertEvent;
+    env.isDoing = false;
+    env.doingTask.summary = summary;
+    env.doingTask.description = description;
+    env.doingTask.end = end.getTime();
+    toggleTaskStatus(env.isDoing);
 
-      syncMethod({
-        'summary': `${summary} (${nodes.elapsed.getAttribute("elapsed")})`,
-        'description': description,
-        'start': start.toISOString(),
-        'end': end.toISOString()
-      })
+    if (env.isSignedIn) {
+
+      const args = {
+        summary: `${summary} (${env.doingTask.elapsedTime})`,
+        description,
+        start: start.toISOString(),
+        end: end.toISOString()
+      };
+
+      let syncMethod;
+      if (env.doingTask.isSynced) {
+        args.eventId = env.doingTask.id;
+        syncMethod = updateEvent;
+      } else {
+        syncMethod = insertEvent;
+      }
+
+      return syncMethod(args)
         .then(res => {
           console.log(res);
           env.doingTask.isSynced = true;
@@ -456,19 +610,19 @@ function handleEndClick() {
         })
         .then(() => {
           // finally
-          addDoneTaskList({ ...env.doingTask });
+          endTaskPostProcCommon();
         });
-  } else {
-    // no log-in user
-  }
-  toggleTaskStatus(false);
+    } else {
+      endTaskPostProcCommon();
+    }
+  });
 }
 
 function saveSettings() {
   env.settings.gettingUpcoming.enabled = nodes.enableGettingUpcoming.checked;
   env.settings.colorId = document.settings.event_color.value;
 
-  const newCalendarSummary = nodes.inputCalendarId.value;
+  const newCalendarSummary = nodes.inputCalendarSummary.value;
   if (newCalendarSummary == env.settings.calendarSummary) {
     // do nothing
   } else if (newCalendarSummary == "default") {
@@ -476,30 +630,40 @@ function saveSettings() {
     env.settings.calendarSummary = newCalendarSummary;
     localStorage.setItem(lsKeys.settings, JSON.stringify(env.settings));
   } else {
-    listCalendar(res => {
-      let i;
-      for (i = 0; i < res.result.items.length; i++) {
-        if (res.result.items[i].summary == newCalendarSummary)
-          break;
-      }
-      if (i == res.result.items.length) {
-        insertCalendar({
-          summary: newCalendarSummary, callback: (res) => {
-            if (res.status == 200) {
-              env.settings.calendarId = res.result.id;
-              env.settings.calendarSummary = newCalendarSummary;
-              localStorage.setItem(lsKeys.settings, JSON.stringify(env.settings));
-            } else {
-              console.log(res);
-            }
-          }
-        })
-      } else {
-        env.settings.calendarId = res.result.items[i].id;
-        env.settings.calendarSummary = newCalendarSummary;
-        localStorage.setItem(lsKeys.settings, JSON.stringify(env.settings));
-      }
-    })
+    listCalendar()
+      .then(res => {
+        let i;
+        for (i = 0; i < res.result.items.length; i++) {
+          if (res.result.items[i].summary == newCalendarSummary)
+            break;
+        }
+        if (i == res.result.items.length) {
+          insertCalendar({ summary: newCalendarSummary })
+            .then((res) => {
+              if (res.status == 200) {
+                env.settings.calendarId = res.result.id;
+                env.settings.calendarSummary = newCalendarSummary;
+                localStorage.setItem(lsKeys.settings, JSON.stringify(env.settings));
+              } else {
+                throw new Error('The response status is other than "200".');
+              }
+            })
+            .catch(err => {
+              console.log(err);
+              pushNotification("新しいカレンダーを作成できませんでした。");
+              initializeSettings();
+            })
+        } else {
+          env.settings.calendarId = res.result.items[i].id;
+          env.settings.calendarSummary = newCalendarSummary;
+          localStorage.setItem(lsKeys.settings, JSON.stringify(env.settings));
+        }
+      })
+      .catch(err => {
+        console.log(err);
+        pushNotification("Googleカレンダーにアクセスできませんでした。");
+        initializeSettings();
+      })
   }
 
   nodes.settingsModal.classList.remove("is-active");
@@ -560,6 +724,7 @@ function myInit() {
     toggleTaskStatus(false);
   }
 
+  sealObjects();
   initializeStyleHandler();
   nodes.startButton.addEventListener("click", handleStartClick);
   nodes.endButton.addEventListener("click", handleEndClick);

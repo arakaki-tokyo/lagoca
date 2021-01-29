@@ -1,0 +1,235 @@
+@startuml
+skinparam BoxPadding 10
+title "end_sequence"
+newpage end_sequence 1
+== click end-button then end ==
+actor user as u
+participant "event handler" as h
+box "<b>Asynchronous\n processing"
+control Queue as q
+participant API
+end box
+box <b>Periodic\n processing
+participant "timer60s()" as tm
+end box
+
+u -> h: エンドボタンクリック\nhandleEndClick()
+activate h
+h -> q: add Queue
+deactivate h
+activate q
+note over q
+    envに以下設定
+    ---
+    * env.isDoing == false
+    * env.doingTask.summary
+    * env.doingTask.description
+    * env.doingTask.end
+end note
+q -> q: toggleTaskStatus(false)
+note left
+    view更新
+end note
+activate q
+deactivate q
+alt LoggedIn case
+    q -> q: add API call
+    activate q
+    alt doingTask is synced
+        q -> API: updatetEvent
+        note right #adf
+            タスクの状態
+            ---
+            ②doing task synced
+            (ref. State diagram )
+        end note
+        activate API
+    else doingTask is **not** synced
+        q -> API: insertEvent
+        note right #adf
+            タスクの状態
+            ---
+            ①doing task unsynced
+            (ref. State diagram )
+        end note
+
+        deactivate q
+        deactivate q
+    end 
+    alt fullfilled
+        API -> q: resolve
+        note right #adf
+            タスクの状態
+            ---
+            ④end task synced
+            (ref. State diagram )
+        end note
+        activate q
+        note over q
+            envに以下設定
+            ---
+            * env.doingTask.isSynced = true
+            * env.doingTask.id
+        end note
+    else rejected
+        API -> q: reject
+        note right #adf
+            タスクの状態
+            ---
+            ③end task unsynced
+            (ref. State diagram )
+        end note
+        deactivate API
+        note over q
+            envに以下設定
+            ---
+            * env.doingTask.isSynced = false
+        end note
+        ref over tm: end_sequence 2
+    end
+    note over q
+        * env.doneTask.list更新
+        * view(doneTaskList)更新
+        * ローカルストレージに**env.doneTask.list**をセット
+        * ローカルストレージから**env.doingTask**を削除
+    end note
+    deactivate q
+else Not LoggedIn case
+    q -[#transparent]-> q
+    activate q
+    note over q
+        * env.doneTask.list更新
+        * view(doneTaskList)更新
+        * ローカルストレージに**env.doneTask.list**をセット
+        * ローカルストレージから**env.doingTask**を削除
+    end note
+end
+deactivate q
+deactivate h
+newpage end_sequence 2
+== fetch G-cal then end ==
+tm -> q: add Queue
+activate tm
+deactivate tm
+activate q
+alt env.isDoing == true
+    alt env.doingTask.isSynced == true
+        q -> q: add API call
+        activate q
+        q -> API:getEvent
+        note right #adf
+            タスクの状態
+            ---
+            ②doing task synced
+            (ref. State diagram )
+        end note
+        deactivate q
+        deactivate q
+        activate API
+        alt fullfilled
+            API -> q: resolve
+            note right #adf
+                タスクの状態
+                ---
+                ④end task synced
+                (ref. State diagram )
+            end note
+            activate q
+            alt 実行中のタスクが終了していた場合
+                note over q
+                    envに以下設定
+                    ---
+                    * env.isDoing = false
+                    * env.doingTask.summary
+                    * env.doingTask.description
+                    * env.doingTask.end
+                end note
+
+                q -> q: toggleTaskStatus(false)
+                note left
+                    view更新
+                end note
+                activate q
+                deactivate q
+                note over q
+                    * env.doneTask.list更新
+                    * view(doneTaskList)更新
+                    * ローカルストレージに**env.doneTask.list**をセット
+                    * ローカルストレージから**env.doingTask**を削除
+                end note
+
+            end
+        else rejected
+            API -> q: reject
+            deactivate API
+            note right #CCC
+                * 通信途絶
+                * アクセス不可
+            end note
+            note over q
+                handleRejectedCommon()
+            end note
+        end
+    else env.doingTask.isSynced == false
+        ref over q: start_sequence 2
+    end 
+else env.isDoing == false
+    q -> q: add API call
+    activate q
+    q -> API: listEvent
+    deactivate q
+    deactivate q
+    activate API
+    alt fullfilled
+        API -> q: resolve
+        activate q
+        alt G-calに実行中のタスクがあり、\nローカルでは終了済み(未同期)の場合
+            q -> q: add API call
+                note right API #adf
+                    タスクの状態
+                    ---
+                    ③end task unsynced
+                    (ref. State diagram )
+                end note
+            activate q
+            q -> API: updateEvent
+            deactivate q
+            deactivate q
+            alt fullfilled
+                API -> q: resolve
+                note right #adf
+                    タスクの状態
+                    ---
+                    ④end task synced
+                    (ref. State diagram )
+                end note
+
+                activate q
+                ' edditing
+                note over q
+                    * env.doneTask.list更新(isSynced = true)
+                    * view(doneTaskList)更新
+                    * ローカルストレージに**env.doneTask.list**をセット
+                end note
+            end
+        else G-calに実行中のタスクがあり、\nローカルには保存されていない場合
+            ref over q: start_sequence 2
+        end
+    else rejected
+        API -> q: reject
+        deactivate API
+        note right #CCC
+            * 通信途絶
+            * アクセス不可
+        end note
+        note over q
+            handleRejectedCommon()
+        end note
+    end
+    deactivate q
+
+' editting
+
+end
+
+    @enduml
