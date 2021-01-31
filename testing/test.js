@@ -5,7 +5,7 @@ const style = {
     blue: ["font-weight: bold;color: hsl(210,100%,70%)", ""],
 };
 const myLog = (arg1, arg2) => {
-    const arg2Style = arg2? style.blue: style.red;
+    const arg2Style = arg2 ? style.blue : style.red;
     console.log(`%c${arg1}%c called. \nreturn: %c${arg2}%c`, ...style.bold, ...arg2Style);
 };
 const testParams = {
@@ -31,13 +31,30 @@ const testParams = {
     eventsList: true,
     eventsListRet: {
         result: {
-            items: []
+            items: [
+                {
+                    htmlLink: "calendar.google.com",
+                    start: {
+                        dateTime: "2021-01-22T13:27:43.654Z"
+                    },
+                    end: {
+                        dateTime: "2021-01-22T13:27:43.654Z"
+                    },
+                    summary: "testsummary1",
+                    description: "description1 description1 description1"
+                }
+            ]
         }
     },
     calendarListList: true,
     calendarListRet: {
         result: {
-            items: [{ summary: "test" }]
+            items: [
+                { id: "id_for_test_calendar", summary: "test" },
+                { id: "id_for_primary_calendar", summary: "logoca.io@gmail.com", primary: true },
+                { id: "id_for_japanese_test_calendar", summary: "テスト" },
+                { id: "id_for_log_calendar", summary: "log" },
+            ]
         }
     },
     calendarsInsert: true,
@@ -61,36 +78,36 @@ const gapi = {
                     myLog("events.get", testParams.eventsGet);
                     return new Promise((resolve, reject) => {
                         if (testParams.eventsGet)
-                        resolve(testParams.eventsGetRet);
+                            resolve(testParams.eventsGetRet);
                         else
-                        reject();
+                            reject();
                     })
                 },
                 insert: (arg) => {
                     myLog("events.insert", testParams.eventsInsert);
                     return new Promise((resolve, reject) => {
                         if (testParams.eventsInsert)
-                        resolve(testParams.eventsInsertRet);
+                            resolve(testParams.eventsInsertRet);
                         else
-                        reject();
+                            reject();
                     })
                 },
                 list: (arg) => {
                     myLog("events.list", testParams.eventsList);
                     return new Promise((resolve, reject) => {
                         if (testParams.eventsList)
-                        resolve(testParams.eventsListRet);
+                            resolve(testParams.eventsListRet);
                         else
-                        reject();
+                            reject();
                     })
                 },
                 update: (arg) => {
                     myLog("events.update", testParams.eventsUpdate);
                     return new Promise((resolve, reject) => {
                         if (testParams.eventsUpdate)
-                        resolve(testParams.eventsInsertRet);
+                            resolve(testParams.eventsInsertRet);
                         else
-                        reject();
+                            reject();
                     })
                 },
             },
@@ -99,20 +116,29 @@ const gapi = {
                     myLog("calendarList.list", testParams.calendarListList);
                     return new Promise((resolve, reject) => {
                         if (testParams.calendarListList)
-                        resolve(testParams.calendarListRet);
+                            resolve(testParams.calendarListRet);
                         else
-                        reject();
+                            reject();
                     })
                 }
             },
             calendars: {
                 insert: arg => {
                     myLog("calendars.insert", testParams.calendarsInsert);
-                return new Promise((resolve, reject) => {
-                        if (testParams.calendarsInsert)
-                            resolve();
-                        else
-                            reject();
+                    return new Promise((resolve, reject) => {
+                        setTimeout(() => {
+
+                            if (testParams.calendarsInsert)
+                                resolve({
+                                    status: 200,
+                                    result: {
+                                        id: `new_calendar_id_of_${arg.summary}`,
+                                        summary: arg.summary
+                                    }
+                                });
+                            else
+                                reject();
+                        }, 1000)
                     })
                 }
             }
