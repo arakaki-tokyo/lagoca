@@ -128,14 +128,14 @@ alt env.isDoing == true
         activate API
         alt fullfilled
             API -> q: resolve
-            note right #adf
-                タスクの状態
-                ---
-                ④end task synced
-                (ref. State diagram )
-            end note
             activate q
             alt 実行中のタスクが終了していた場合
+                note right API #adf
+                    タスクの状態
+                    ---
+                    ④end task synced
+                    (ref. State diagram )
+                end note
                 note over q
                     envに以下設定
                     ---
