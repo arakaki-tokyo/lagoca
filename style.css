@@ -1,38 +1,85 @@
-html, body{
-    height: 100%;
+:root {
+  --done-task-area-height: 140px;
+  --upcoming-task-area-height: 85px;
 }
-input[name="event_color"]{
-    display: none;
+::-webkit-scrollbar {
+  width: 1px;
+  height: 1px;
+  background: transparent;
 }
-input[name="event_color"] + label{
-    display: inline-block;
-    width: 1.4rem;
-    height: 1.4rem;
-    margin: 0 0.2rem;
-    border:solid 3px;
-    border-radius: 50%;
-    line-height: 1rem;
-    box-sizing: border-box;
-    text-align: center;
-    vertical-align: middle;
+::-webkit-scrollbar-thumb {
+  background: hsla(0, 0%, 0%, 0.7);
 }
-input[name="event_color"]:checked + label{
-    border:solid 0.71rem;
+html,
+body {
+  height: 100%;
+}
+input[name="event_color"] {
+  display: none;
+}
+input[name="event_color"] + label {
+  display: inline-block;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin: 0 0.2rem;
+  border: solid 3px;
+  border-radius: 50%;
+  line-height: 1rem;
+  box-sizing: border-box;
+  text-align: center;
+  vertical-align: middle;
+}
+input[name="event_color"]:checked + label {
+  border: solid 0.71rem;
+}
+input[name="which_to_show"] {
+  display: none;
+}
+input[name="which_to_show"] + div {
+  transition-duration: 100ms;
+  height: 0;
+}
+input[name="which_to_show"]:checked + div {
+  transition-duration: 100ms;
+}
+input[name="which_to_show"]:checked + #done {
+  height: var(--done-task-area-height);
+}
+input[name="which_to_show"]:checked + #upcoming {
+  height: var(--upcoming-task-area-height);
 }
 
-#done{
-    overflow-x: scroll;
-    white-space: nowrap;
+#done,
+#upcoming {
+  overflow-x: scroll;
+  overflow-y: hidden;
+  white-space: nowrap;
 }
 
-#notification{
-    position: fixed;
-    bottom:-130px;
-    left: 0;
-    right: 0;
-    margin: 1rem auto;
-    opacity: 0.7;
-    max-width: 350px;
-    transition-duration: 500ms;
-    box-shadow: 0px 8px 16px hsl(0deg 100% 20%);
+#notification {
+  position: fixed;
+  bottom: -130px;
+  left: 0;
+  right: 0;
+  margin: 1rem auto;
+  opacity: 0.7;
+  max-width: 350px;
+  transition-duration: 500ms;
+  box-shadow: 0px 8px 16px hsl(0deg 100% 20%);
+}
+
+time {
+  font-family: consolas;
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+}
+
+@media screen and (min-width: 1024px) {
+  #done {
+    height: var(--done-task-area-height);
+  }
+  #upcoming {
+    height: var(--upcoming-task-area-height);
+  }
 }
