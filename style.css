@@ -14,24 +14,6 @@ html,
 body {
   height: 100%;
 }
-input[name="event_color"] {
-  display: none;
-}
-input[name="event_color"] + label {
-  display: inline-block;
-  width: 1.4rem;
-  height: 1.4rem;
-  margin: 0 0.2rem;
-  border: solid 3px;
-  border-radius: 50%;
-  line-height: 1rem;
-  box-sizing: border-box;
-  text-align: center;
-  vertical-align: middle;
-}
-input[name="event_color"]:checked + label {
-  border: solid 0.71rem;
-}
 input[name="which_to_show"] {
   display: none;
 }
@@ -55,6 +37,11 @@ input[name="which_to_show"]:checked + #upcoming {
   overflow-y: hidden;
   white-space: nowrap;
 }
+done-act, upcoming-act {
+  width: 130px;
+  display: inline-block;
+  margin: 2px;
+}
 
 #notification {
   position: fixed;
@@ -75,7 +62,7 @@ time {
   text-align: center;
 }
 
-@media screen and (min-width: 1024px) {
+@media (min-height: 700px) {
   #done {
     height: var(--done-task-area-height);
   }
