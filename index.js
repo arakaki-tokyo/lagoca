@@ -270,8 +270,8 @@ function Settings({
  */
 function Act({
   isSynced = false,
-  start = new Date().getTime(),
-  end = new Date().getTime(),
+  start = Date.now(),
+  end = Date.now(),
   elapsedTime = "",
   id = "",
   summary = "",
@@ -839,7 +839,7 @@ class ActEnd extends HTMLButtonElement {
   connectedCallback() {
     this.addEventListener("click", () => {
       const start = new Date(this.doingAct.start);
-      const end = new Date();
+      const end = new Date(Date.now() + 1000);
 
       this.doingAct.end = end.getTime();
       this.doingAct.summary = this.summary;
@@ -954,7 +954,7 @@ class TimeElapsed extends HTMLElement {
     this.innerHTML = "00:00:00";
   }
   doTimeout() {
-    this.calcElapsedTime(this.start, new Date().getTime());
+    this.calcElapsedTime(this.start, Date.now());
     this.timeoutID = setTimeout(() => { this.doTimeout() }, 1000);
   }
   calcElapsedTime(start, end) {
@@ -1101,7 +1101,7 @@ class DoneAct extends HTMLElement {
   }
   sync() {
     Queue.add(() => API.insertEvent({
-      summary: this.act.summary,
+      summary: `${this.act.summary} (${this.act.elapsedTime})`,
       description: this.act.description,
       start: new Date(this.act.start).toISOString(),
       end: new Date(this.act.end).toISOString()
@@ -1109,6 +1109,7 @@ class DoneAct extends HTMLElement {
       .then(res => {
         this.act.isSynced = true;
         this.act.id = res.result.id;
+        this.act.link = res.result.htmlLink;
         this.#render(this.act);
         storageManager.save(storeKeys.doneActList);
       })
@@ -1153,7 +1154,9 @@ class UpcomingAct extends HTMLElement {
 }
 class UpcomingActList extends HTMLElement {
   calendarId;
+  settings;
   isActDoing = false;
+  isSignedIn = false;
   listContainer;
   tmpl;
 
@@ -1164,7 +1167,8 @@ class UpcomingActList extends HTMLElement {
   connectedCallback() {
     Store.onChange(storeKeys.isActDoing, this);
     Store.onChange(storeKeys.settings, this);
-
+    Store.onChange(storeKeys.isSignedIn, this);
+    
     this.listContainer = this.querySelector("[data-container]");
     const template = this.querySelector("template");
     this.tmpl = template.innerHTML;
@@ -1178,15 +1182,18 @@ class UpcomingActList extends HTMLElement {
         this[key] = value;
         break;
       case storeKeys.settings:
-        if (value.upcomingEnabled) {
+      case storeKeys.isSignedIn:
+        this[key] = value;
+
+        if (!this.settings.upcomingEnabled || !this.isSignedIn) {
+          this.classList.add("is-hidden");
+        }else{
           this.classList.remove("is-hidden");
-          if (this.calendarId != value.upcomingCalendarId) {
-            this.calendarId = value.upcomingCalendarId;
+          if (this.calendarId != this.settings.upcomingCalendarId) {
+            this.calendarId = this.settings.upcomingCalendarId;
             this.getUpcomings(this.calendarId)
               .then(this.listUpcomings.bind(this));
           }
-        } else {
-          this.classList.add("is-hidden");
         }
         break;
       default:
@@ -1394,6 +1401,9 @@ function updateUserProfile() {
 function postEndProc(doneActList, doneAct) {
   const listPtr = doneActList ? doneActList : [];
   listPtr.push({ ...doneAct });
+  if(listPtr.length > 20){
+    listPtr.shift();
+  }
   Store.set(storeKeys.doneActList, listPtr);
   Store.set(storeKeys.doingAct, null);
 }
@@ -1577,7 +1587,7 @@ const pereodic = new class {
       .then(res => {
         console.log(res);
         act.isSynced = true;
-        StorageManager.save(storeKeys.doneActList);
+        storageManager.save(storeKeys.doneActList);
       })
       .catch(err => console.log(err));
   }
@@ -1589,7 +1599,7 @@ const pereodic = new class {
   }
   syncDoingAct(act) {
     Store.set(storeKeys.isActDoing, true);
-    return insertEvent({
+    return API.insertEvent({
       summary: act.summary,
       description: act.description,
       start: new Date(act.start).toISOString(),
