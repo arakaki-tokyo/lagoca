@@ -35,10 +35,10 @@ const testParams = {
                 {
                     htmlLink: "calendar.google.com",
                     start: {
-                        dateTime: "2021-01-22T13:27:43.654Z"
+                        dateTime: "2021-02-13T11:42:39.544Z"
                     },
                     end: {
-                        dateTime: "2021-01-22T13:27:43.654Z"
+                        dateTime: "2021-02-13T11:42:39.544Z"
                     },
                     summary: "testsummary1",
                     description: "description1 description1 description1"
@@ -86,10 +86,12 @@ const gapi = {
                 insert: (arg) => {
                     myLog("events.insert", testParams.eventsInsert);
                     return new Promise((resolve, reject) => {
-                        if (testParams.eventsInsert)
-                            resolve(testParams.eventsInsertRet);
-                        else
-                            reject();
+                        setTimeout(() => {
+                            if (testParams.eventsInsert)
+                                resolve(testParams.eventsInsertRet);
+                            else
+                                reject();
+                        }, 1000)
                     })
                 },
                 list: (arg) => {
@@ -115,10 +117,12 @@ const gapi = {
                 list: () => {
                     myLog("calendarList.list", testParams.calendarListList);
                     return new Promise((resolve, reject) => {
-                        if (testParams.calendarListList)
-                            resolve(testParams.calendarListRet);
-                        else
-                            reject();
+                        setTimeout(() => {
+                            if (testParams.calendarListList)
+                                resolve(testParams.calendarListRet);
+                            else
+                                reject();
+                        }, 2000)
                     })
                 }
             },
