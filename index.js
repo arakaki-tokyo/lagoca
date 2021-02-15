@@ -719,17 +719,34 @@ class Summary extends HTMLInputElement {
  * @class Description
  * @extends {HTMLInputElement}
  */
-class Description extends HTMLTextAreaElement {
+class Description extends HTMLElement {
   constructor() {
     super();
     Store.onChange(storeKeys.descriptionToView, this);
     Store.onChange(storeKeys.isActDoing, this);
   }
   connectedCallback() {
-    this.addEventListener("input", () => {
-      Store.set(storeKeys.descriptionFromView, this.value);
-      localStorage.setItem(storeKeys.descriptionToView, this.value);
+    const editorContainer = document.createElement("div");
+    this.appendChild(editorContainer);
+    this.quill = new Quill(editorContainer, {
+      modules: {
+        toolbar: [
+          ['bold', 'italic', 'underline'],
+          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+          ['link'],
+          ['clean']
+        ]
+      },
+      placeholder: this.getAttribute("placeholder"),
+      theme: 'snow'
     });
+
+    this.editor = this.querySelector(".ql-editor");
+    this.editor.classList.add("textarea");
+    this.quill.on("text-change", () => {
+      Store.set(storeKeys.descriptionFromView, this.editor.innerHTML);
+      localStorage.setItem(storeKeys.descriptionToView, this.editor.innerHTML);
+    })
   }
   update({ key, value }) {
     switch (key) {
@@ -746,6 +763,7 @@ class Description extends HTMLTextAreaElement {
       default:
     }
   }
+  set value(val) { this.editor.innerHTML = val; }
 }
 
 /**
@@ -1168,7 +1186,7 @@ class UpcomingActList extends HTMLElement {
     Store.onChange(storeKeys.isActDoing, this);
     Store.onChange(storeKeys.settings, this);
     Store.onChange(storeKeys.isSignedIn, this);
-    
+
     this.listContainer = this.querySelector("[data-container]");
     const template = this.querySelector("template");
     this.tmpl = template.innerHTML;
@@ -1187,7 +1205,7 @@ class UpcomingActList extends HTMLElement {
 
         if (!this.settings.upcomingEnabled || !this.isSignedIn) {
           this.classList.add("is-hidden");
-        }else{
+        } else {
           this.classList.remove("is-hidden");
           if (this.calendarId != this.settings.upcomingCalendarId) {
             this.calendarId = this.settings.upcomingCalendarId;
@@ -1286,7 +1304,6 @@ const customTags = {
     class: Summary
   },
   Description: {
-    custom: "textarea",
     name: "act-description",
     class: Description
   },
@@ -1401,7 +1418,7 @@ function updateUserProfile() {
 function postEndProc(doneActList, doneAct) {
   const listPtr = doneActList ? doneActList : [];
   listPtr.push({ ...doneAct });
-  if(listPtr.length > 20){
+  if (listPtr.length > 20) {
     listPtr.shift();
   }
   Store.set(storeKeys.doneActList, listPtr);
@@ -1519,9 +1536,7 @@ const pereodic = new class {
     if (this.isActDoing) {
       if (this.doingAct.isSynced) {
         // check if doingTask has been done
-        return this.checkDone()
-          .then(this.checkDoing.bind(this))
-          .catch(handleRejectedCommon);
+        return this.checkDone();
       } else {
         // doingTask haven't been synced yet, so try to sync.
         return this.syncDoingAct(this.doingAct);
@@ -1539,8 +1554,10 @@ const pereodic = new class {
           this.doingAct.description = res.result.description;
           this.doingAct.end = (new Date(res.result.end.dateTime)).getTime();
           postEndProc(this.doneActList, this.doingAct);
+          return this.checkDoing();
         }
       })
+      .catch(handleRejectedCommon);
   }
   checkDoing() {
     return API.listEvent({
@@ -1589,7 +1606,7 @@ const pereodic = new class {
         act.isSynced = true;
         storageManager.save(storeKeys.doneActList);
       })
-      .catch(err => console.log(err));
+      .catch(handleRejectedCommon);
   }
   startNewAct(act) {
     Store.set(storeKeys.isActDoing, true);

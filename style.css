@@ -1,5 +1,5 @@
 :root {
-  --done-task-area-height: 140px;
+  --done-task-area-height: 200px;
   --upcoming-task-area-height: 85px;
 }
 ::-webkit-scrollbar {
@@ -14,6 +14,40 @@ html,
 body {
   height: 100%;
 }
+
+.ql-editor.ql-blank::before {
+  /* placeholderのスタイルをbulmaと合わせる */
+  color: rgba(0, 0, 0, 0.3) !important;
+  font-style: normal !important;
+}
+
+act-description {
+  height: 150px;
+  display: block;
+  margin-top: -35px;
+  margin-bottom: 35px;
+}
+
+act-description .ql-toolbar {
+  margin: 0 3px;
+  padding: 5px !important;
+  border: none !important;
+  border-bottom: solid 1px lightgray !important;
+  background: hsla(0, 100%, 100%, 0.9);
+  transform: translateY(103%);
+  position: relative;
+  z-index: 1;
+}
+
+act-description .ql-container {
+  position: relative;
+  border: none !important;
+}
+act-description .ql-editor {
+  padding-top: 45px;
+  box-shadow: none;
+}
+
 input[name="which_to_show"] {
   display: none;
 }
@@ -31,16 +65,23 @@ input[name="which_to_show"]:checked + #upcoming {
   height: var(--upcoming-task-area-height);
 }
 
-#done,
-#upcoming {
+[data-container] {
   overflow-x: scroll;
   overflow-y: hidden;
   white-space: nowrap;
 }
-done-act, upcoming-act {
-  width: 130px;
+done-act,
+upcoming-act {
+  width: 150px;
   display: inline-block;
   margin: 2px;
+}
+
+done-act [data-description] {
+  height: 115px;
+  overflow-y: scroll;
+  white-space: normal;
+  line-height: 15px;
 }
 
 #notification {
