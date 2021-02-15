@@ -1358,8 +1358,8 @@ for (const key in customTags) {
 /* *************************************** */
 function handleClientLoad() {
 
-  const CLIENT_ID = '832522276123-aqt7vhfu2jaauqc763crddqknl48s9fo.apps.googleusercontent.com';
-  const API_KEY = 'AIzaSyBWlwZoS4TgRDg-6uuINYlCvphULiUL6no';
+  const CLIENT_ID = '235370693851-sctgf3t32m6df955d28g898itm97165d.apps.googleusercontent.com';
+  const API_KEY = 'AIzaSyDENRe8RAK0ZhuZT9f0VQgSqG3o0ybuf5c';
   const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
   const SCOPES = "https://www.googleapis.com/auth/calendar";
 
