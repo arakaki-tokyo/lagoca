@@ -1461,6 +1461,77 @@ const coordinator = new class {
     }
   }
 }
+const titleManager = new class {
+  doingAct;
+  summaryFromView;
+  svgContainer;
+  IntervalId;
+  favicon;
+  faviconHrefOrg;
+  title;
+  titleTextOrg;
+  iconHand;
+  iconParts;
+  constructor() {
+    Store.onChange(storeKeys.doingAct, this);
+    Store.onChange(storeKeys.isActDoing, this);
+    Store.onChange(storeKeys.summaryFromView, this);
+
+    this.favicon = document.getElementById("favicon");
+    this.faviconHrefOrg = this.favicon.href;
+    this.title = document.querySelector("title");
+    this.titleTextOrg = this.title.innerText;
+
+
+    this.svgContainer = document.createElement("div");
+    fetch('img/favicon.svg')
+      .then(res => res.text())
+      .then(data => {
+        this.svgContainer.innerHTML = data;
+        this.iconHand = this.svgContainer.querySelector("#hand");
+        this.iconParts = this.svgContainer.querySelectorAll(".st0");
+      });
+
+  }
+
+  /**
+   * @param {object} object
+   * @param {string} object.key
+   * @param {Act | boolean} object.value
+   */
+  update({ key, value }) {
+    switch (key) {
+      case storeKeys.summaryFromView:
+        this.summaryFromView = value;
+        break;
+      case storeKeys.doingAct:
+        this.doingAct = value;
+        if (this.doingAct) {
+          this.IntervalId = setInterval(() => this.proc(), 1000);
+        }
+        break;
+      case storeKeys.isActDoing:
+        if (this.IntervalId && !value) {
+          clearInterval(this.IntervalId);
+          this.IntervalId = null;
+          this.title.text = this.titleTextOrg;
+          this.favicon.href = this.faviconHrefOrg;
+
+        }
+        break;
+      default:
+    }
+  }
+  proc() {
+    const seconds = Math.floor((Date.now() - this.doingAct.start) / 1000) % 60;
+    this.iconHand.style.transform = `rotate(${seconds * 6}deg)`;
+    const color = (seconds % 2) ? "#F80" : "#444";
+    this.iconParts.forEach(e => e.style.fill = color);
+    this.favicon.href = `data:image/svg+xml,${encodeURIComponent(this.svgContainer.innerHTML)}`;
+
+    this.title.innerHTML = `${this.summaryFromView} (${this.doingAct.elapsedTime}) | ${this.titleTextOrg}`;
+  }
+}
 
 const storageManager = new class {
   init() {
