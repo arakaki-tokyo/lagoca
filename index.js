@@ -860,7 +860,7 @@ class ActEnd extends HTMLButtonElement {
       const end = new Date(Date.now() + 1000);
 
       this.doingAct.end = end.getTime();
-      this.doingAct.summary = this.summary;
+      this.doingAct.summary = `${this.summary} (${this.doingAct.elapsedTime})`;
       this.doingAct.description = this.description;
       Store.set(storeKeys.isActDoing, false);
 
@@ -870,7 +870,7 @@ class ActEnd extends HTMLButtonElement {
 
           return syncMethod({
             eventId: this.doingAct.id,
-            summary: `${this.doingAct.summary} (${this.doingAct.elapsedTime})`,
+            summary: this.doingAct.summary,
             description: this.doingAct.description,
             start: start.toISOString(),
             end: end.toISOString()
@@ -1090,8 +1090,7 @@ class DoneAct extends HTMLElement {
    * @memberof DoneAct
    */
   #render(act) {
-    const summary = `${act.summary} (${act.elapsedTime})`;
-    this.querySelector("[data-summary]").innerHTML = act.link ? `<a href="${act.link}" target="_blank">${summary}</a>` : summary;
+    this.querySelector("[data-summary]").innerHTML = act.link ? `<a href="${act.link}" target="_blank">${act.summary}</a>` : act.summary;
     this.querySelector("[data-time]").innerHTML = `${new MyDate(act.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(act.end).strftime("%H:%M")}`;
     this.querySelector("[data-description]").innerHTML = act.description;
 
@@ -1114,12 +1113,12 @@ class DoneAct extends HTMLElement {
 
   }
   restart() {
-    Store.set(storeKeys.summaryToView, this.act.summary);
+    Store.set(storeKeys.summaryToView, this.act.summary.replace(/ \([^(]*\d?m\)$/,""));
     Store.set(storeKeys.descriptionToView, this.act.description);
   }
   sync() {
     Queue.add(() => API.insertEvent({
-      summary: `${this.act.summary} (${this.act.elapsedTime})`,
+      summary: this.act.summary,
       description: this.act.description,
       start: new Date(this.act.start).toISOString(),
       end: new Date(this.act.end).toISOString()
@@ -1667,7 +1666,7 @@ const pereodic = new class {
   syncDoneAct(act) {
     return API.updateEvent({
       eventId: act.id,
-      summary: `${act.summary} (${act.elapsedTime})`,
+      summary: act.summary,
       description: act.description,
       start: new Date(act.start).toISOString(),
       end: new Date(act.end).toISOString()
