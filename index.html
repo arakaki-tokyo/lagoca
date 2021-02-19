@@ -116,39 +116,39 @@
           </div>
           <div class="field">
             <label class="label">予定を取得するカレンダー</label>
-              <div class="ml-2 control">
-                <label class="checkbox"><input data-role="upcoming_enabled" type="checkbox">予定の取得を有効化</label>
+            <div class="ml-2 control">
+              <label class="checkbox"><input data-role="upcoming_enabled" type="checkbox">予定の取得を有効化</label>
+            </div>
+            <div class="ml-2 control">
+              <div class="select">
+                <select is="select-cal" data-role="upcoming_calendar_id" style="width:150px">
+                  <option value="primary">default</option>
+                </select>
               </div>
-              <div class="ml-2 control">
-                <div class="select">
-                  <select is="select-cal" data-role="upcoming_calendar_id" style="width:150px">
-                    <option value="primary">default</option>
-                  </select>
+            </div>
+          </div>
+          <div class="field">
+            <label class="label">ログを記録するカレンダー</label>
+            <div claass="ml-2 control" style="display:flex">
+              <div class="select mr-2">
+                <select is="select-log" data-role="log_calendar_id" style="width:150px">
+                  <option value="primary">default</option>
+                </select>
+              </div>
+              <div class="field has-addons">
+                <div class="control">
+                  <input is="new-cal" id="new_calendar" class="input" type="text" placeholder="新規作成">
+                </div>
+                <div class="control">
+                  <button is="add-cal" id="calendar_add_button" class="button is-info">&#x2795;</button>
                 </div>
               </div>
             </div>
-            <div class="field">
-              <label class="label">ログを記録するカレンダー</label>
-              <div claass="ml-2 control" style="display:flex">
-                <div class="select mr-2">
-                  <select is="select-log" data-role="log_calendar_id" style="width:150px">        
-                    <option value="primary">default</option>
-                  </select>
-                </div>
-                <div class="field has-addons">
-                  <div class="control">
-                    <input is="new-cal" id="new_calendar" class="input" type="text" placeholder="新規作成">
-                  </div>
-                  <div class="control">
-                    <button is="add-cal" id="calendar_add_button" class="button is-info">&#x2795;</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="field">
-              <label class="label">Event Color</label>
-                <eve-col data-role="color_id"></eve-col>
-            </div>
+          </div>
+          <div class="field">
+            <label class="label">Event Color</label>
+            <eve-col data-role="color_id"></eve-col>
+          </div>
         </div>
       </section>
       <footer class="modal-card-foot">
