@@ -1272,6 +1272,67 @@ class UpcomingActList extends HTMLElement {
   }
 }
 
+class ToolTip extends HTMLElement{
+  tip;
+  constructor(){
+    super();
+    this.style.cursor = "help";
+    this.style.position = "relative";
+  }
+  connectedCallback(){
+    this.attachShadow({mode: 'open'}).innerHTML = `
+    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">
+    <style>
+      g{stroke-width: 0;fill: currentColor;}
+      #tip{
+        position: absolute;
+        top: 0.5rem;
+        left: 1rem;
+        background: black;
+        color: white;
+        font-size: 11px;
+        font-weight: normal;
+        opacity: 0.8;
+        padding: 3px;
+        border-radius: 3px;
+        z-index: 10;
+        width: 250px;
+        display: none;
+        user-select: none ;
+      }
+    </style>
+    <g>
+    <path d="M14 9.5c0-0.825 0.675-1.5 1.5-1.5h1c0.825 0 1.5 0.675 1.5 1.5v1c0 0.825-0.675 1.5-1.5 1.5h-1c-0.825 0-1.5-0.675-1.5-1.5v-1z"></path>
+    <path d="M20 24h-8v-2h2v-6h-2v-2h6v8h2z"></path>
+    <path d="M16 0c-8.837 0-16 7.163-16 16s7.163 16 16 16 16-7.163 16-16-7.163-16-16-16zM16 29c-7.18 0-13-5.82-13-13s5.82-13 13-13 13 5.82 13 13-5.82 13-13 13z"></path>
+    </g></svg>
+    `
+    this.tip = document.createElement("div");
+    this.tip.id = "tip";
+    this.tip.innerHTML = this.getAttribute("title");
+    this.shadowRoot.append(this.tip);
+    
+    this.addEventListener("click", this.show);
+    this.hide = this.#hide.bind(this);
+  }
+  show(e){
+    e.stopPropagation();
+    const marginRight = window.innerWidth - (this.getBoundingClientRect().x + 270);
+    if(marginRight < 0){
+      this.tip.style.transform = `translateX(${marginRight}px)`;
+    }
+    this.removeEventListener("click", this.show);
+    document.addEventListener("click", this.hide);
+    this.tip.style.display = "block";
+  }
+  #hide(){
+    this.tip.style.transform = "";
+    document.removeEventListener("click", this.hide);
+    this.tip.style.display = "none";
+    this.addEventListener("click", this.show);
+  }
+}
+
 
 
 const customTags = {
@@ -1358,6 +1419,10 @@ const customTags = {
   UpcomingActList: {
     name: "upcoming-act-list",
     class: UpcomingActList
+  },
+  ToolTip: {
+    name: "tool-tip",
+    class: ToolTip
   },
 }
 for (const key in customTags) {
