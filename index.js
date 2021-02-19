@@ -307,8 +307,14 @@ const $ = (id) => document.getElementById(id);
  * - `data-action="close"`属性：クリックされるとモーダルを閉じる
  * - `data-action="signin"`属性：クリックされるとサインイン処理
  * - `data-action="logout"`属性：クリックされるとログアウト処理
+ * - `data-action="apply"`属性：クリックされると設定を保存
  * - `data-state="logedout"`: 非ログイン状態で表示
  * - `data-state="signedin"`: ログイン状態で表示
+ * - `data-role="upcoming_enabled"`: 予定の取得を有効化チェックボックス
+ * - `data-role="upcoming_calendar_id"`: 予定を取得するカレンダーセレクトボックス
+ * - `data-role="log_calendar_id"`: ログを記録するカレンダーセレクトボックス
+ * - `data-role="color_id"`: イベントカラーラジオボタン
+ * 
  * 
  * @class SettingsModal
  * @extends {HTMLElement}
@@ -561,12 +567,14 @@ class NewCalendar extends HTMLInputElement {
 
 class AddCalendar extends HTMLButtonElement {
   tmpNewCalendar;
+  IntervalId;
   constructor() {
     super();
     Store.onChange(storeKeys.tmpNewCalendar, this);
     Store.onChange(storeKeys.isAddCalInProgress, this);
   }
   connectedCallback() {
+    this.style.transitionDuration = "500ms";
     this.addEventListener("click", () => {
       this.addCalendarProc(this.tmpNewCalendar);
     })
@@ -575,9 +583,11 @@ class AddCalendar extends HTMLButtonElement {
     switch (key) {
       case storeKeys.tmpNewCalendar:
         this.tmpNewCalendar = value;
+        this.blink(value);
         break;
       case storeKeys.isAddCalInProgress:
         if (value) {
+          this.blink("");
           this.classList.add("is-loading");
         } else {
           this.classList.remove("is-loading");
@@ -605,8 +615,17 @@ class AddCalendar extends HTMLButtonElement {
         Store.set(storeKeys.isAddCalInProgress, false);
       })
   }
-
-
+  blink(text) {
+    if (text && !this.IntervalId) {
+      this.IntervalId = setInterval(() => {
+        this.classList.add("has-text-warning");
+        setTimeout(() => this.classList.remove("has-text-warning"), 500);
+      }, 1000);
+    } else if (!text && this.IntervalId) {
+      clearInterval(this.IntervalId);
+      this.IntervalId = null;
+    }
+  }
 }
 
 /**
