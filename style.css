@@ -15,6 +15,10 @@ body {
   height: 100%;
 }
 
+label > * {
+  vertical-align: middle;
+}
+
 .ql-editor.ql-blank::before {
   /* placeholderのスタイルをbulmaと合わせる */
   color: rgba(0, 0, 0, 0.3) !important;
@@ -90,10 +94,11 @@ done-act [data-description] {
   left: 0;
   right: 0;
   margin: 1rem auto;
-  opacity: 0.7;
+  opacity: 0.8;
   max-width: 350px;
   transition-duration: 500ms;
   box-shadow: 0px 8px 16px hsl(0deg 100% 20%);
+  z-index: 100;
 }
 
 time {

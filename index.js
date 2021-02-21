@@ -291,12 +291,14 @@ function Settings({
   upcomingEnabled = "",
   upcomingCalendarId = "",
   logCalendarId = "",
-  colorId = ""
+  colorId = "",
+  notificationEnabled = ""
 }) {
   this.upcomingEnabled = upcomingEnabled;
   this.upcomingCalendarId = upcomingCalendarId;
   this.logCalendarId = logCalendarId;
   this.colorId = colorId;
+  this.notificationEnabled = notificationEnabled;
 }
 /**
  * アクションデータクラス
@@ -362,6 +364,7 @@ class SettingsModal extends HTMLElement {
   upcomingCalendarId;
   logCalendarId;
   colorId;
+  notificationEnabled;
 
   constructor() {
     super();
@@ -385,6 +388,9 @@ class SettingsModal extends HTMLElement {
         case "color_id":
           this.colorId = elm;
           break;
+        case "notification_enabled":
+          this.notificationEnabled = elm;
+          break;
         default:
       }
     });
@@ -405,6 +411,7 @@ class SettingsModal extends HTMLElement {
         this.appliedSetting = value;
       // continue
       case storeKeys.calendars:
+        // wait calendar selectors updating
         setTimeout(() => this.init(this.appliedSetting), 0);
         break;
       case storeKeys.isModalOpen:
@@ -452,7 +459,8 @@ class SettingsModal extends HTMLElement {
       upcomingEnabled: this.upcomingEnabled.checked,
       upcomingCalendarId: this.upcomingCalendarId.value,
       logCalendarId: this.logCalendarId.value,
-      colorId: this.colorId.value
+      colorId: this.colorId.value,
+      notificationEnabled: this.notificationEnabled.checked
     });
     Store.set(storeKeys.settings, newSettings);
     this.close();
@@ -463,6 +471,7 @@ class SettingsModal extends HTMLElement {
     this.upcomingCalendarId.disabled = !settings.upcomingEnabled;
     this.logCalendarId.value = settings.logCalendarId;
     this.colorId.value = settings.colorId;
+    this.notificationEnabled.checked = settings.notificationEnabled;
   }
 }
 
@@ -722,6 +731,48 @@ class EventColor extends HTMLElement {
   }
   set value(val) {
     this.form.ev.value = val;
+  }
+}
+
+class NotificationCheck extends HTMLInputElement {
+  permission;
+  constructor() {
+    super();
+    if (!("Notification" in window)) {
+      this.disabled = true;
+    } else {
+      this.permission = Notification.permission;
+    }
+  }
+  connectedCallback() {
+    Store.set(storeKeys.notificationEnabled, this.checked);
+
+    this.addEventListener("input", () => {
+      if (this.checked) {
+        if (this.permission === "denied") {
+          Store.set(storeKeys.notice, new DATA.Notice({ message: "このアプリからの通知が拒否されています。<br>デバイス、またはブラウザの設定を確認してください。" }));
+          this.checked = false;
+        } else {
+          const callback = permission => {
+            if (permission != "granted") {
+              this.checked = false;
+            }
+          };
+          try {
+            Notification.requestPermission().then(callback);
+          } catch (e) {
+            console.log(e)
+            Notification.requestPermission(callback);
+          }
+        }
+      }
+    })
+  }
+  set checked(val) {
+    super.checked = (val && this.permission === "granted") ? true : false;
+  }
+  get checked() {
+    return super.checked;
   }
 }
 
@@ -1414,6 +1465,11 @@ const customTags = {
     name: "eve-col",
     class: EventColor
   },
+  NotificationCheck: {
+    custom: "input",
+    name: "notification-check",
+    class: NotificationCheck
+  },
   Summary: {
     custom: "input",
     name: "act-summary",
@@ -1507,7 +1563,8 @@ function appInit() {
     logCalendarId: "primary",
     upcomingCalendarId: "primary",
     upcomingEnabled: false,
-    colorId: "1"
+    colorId: "1",
+    notificationEnabled: false
   }));
 
   storageManager.init();
