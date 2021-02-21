@@ -66,6 +66,42 @@ const Queue = {
   }
 };
 
+class Cron {
+  // key: {Number} ms, value: {object} {{Number} intervalId, {Array<function>} jobTable}
+  static #jobRegister = new Map();
+  static add(ms, f) {
+    let jobs;
+    if (this.#jobRegister.has(ms)) {
+      jobs = this.#jobRegister.get(ms);
+      jobs.jobTable.push(f);
+    } else {
+      jobs = { jobTable: [f] };
+      this.#jobRegister.set(ms, jobs);
+    }
+
+    if (jobs.jobTable.length == 1) {
+      jobs.intervalId = setInterval(() => {
+        jobs.jobTable.forEach(f => f());
+      }, ms)
+    }
+  }
+  static remove(ms, f) {
+    if (this.#jobRegister.has(ms)) {
+      const { jobTable, intervalId } = this.#jobRegister.get(ms);
+      const index = jobTable.findIndex(job => job === f);
+      if (index >= 0) {
+        jobTable.splice(index, 1);
+        if (jobTable.length == 0) {
+          clearInterval(intervalId);
+        }
+      } else {
+        console.log("not found");
+      }
+    }
+  }
+}
+
+
 class MyDate extends Date {
   /**
    * @param {string} fmt 日時のフォーマット文字列。
@@ -951,9 +987,9 @@ class ActEnd extends HTMLButtonElement {
  * @extends {HTMLElement}
  */
 class TimeElapsed extends HTMLElement {
-  timeoutID;
   start;
   doingAct;
+  registeredJob;
   connectedCallback() {
     this.init();
     Store.onChange(storeKeys.isActDoing, this);
@@ -971,17 +1007,18 @@ class TimeElapsed extends HTMLElement {
       case storeKeys.isActDoing:
         if (value) {
         } else {
-          clearTimeout(this.timeoutID);
+          Cron.remove(1000, this.registeredJob);
           this.init();
-          this.timeoutID = null;
           this.start = null;
         }
         break;
       case storeKeys.doingAct:
         this.doingAct = value;
-        if (!value || this.timeoutID) return;
+        if (!value) return;
         this.start = value.start;
         this.doTimeout();
+        this.registeredJob = this.doTimeout.bind(this);
+        Cron.add(1000, this.registeredJob);
         break;
       default:
     }
@@ -991,16 +1028,16 @@ class TimeElapsed extends HTMLElement {
     this.innerHTML = "00:00:00";
   }
   doTimeout() {
-    this.calcElapsedTime(this.start, Date.now());
-    this.timeoutID = setTimeout(() => { this.doTimeout() }, 1000);
+    const [h, m, s] = this.calcElapsedTime(this.start, Date.now());
+    this.innerHTML = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    this.doingAct.elapsedTime = `${h == 0 ? "" : h + "h"}${m}m`;
   }
   calcElapsedTime(start, end) {
     const elapsedTime = Math.floor((end - start) / 1000);
     const h = Math.floor(elapsedTime / (60 * 60));
     const m = Math.floor(elapsedTime / 60) % 60;
     const s = elapsedTime % 60;
-    this.innerHTML = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-    this.doingAct.elapsedTime = `${h == 0 ? "" : h + "h"}${m}m`;
+    return [h, m, s];
   }
 }
 
@@ -1272,15 +1309,15 @@ class UpcomingActList extends HTMLElement {
   }
 }
 
-class ToolTip extends HTMLElement{
+class ToolTip extends HTMLElement {
   tip;
-  constructor(){
+  constructor() {
     super();
     this.style.cursor = "help";
     this.style.position = "relative";
   }
-  connectedCallback(){
-    this.attachShadow({mode: 'open'}).innerHTML = `
+  connectedCallback() {
+    this.attachShadow({ mode: 'open' }).innerHTML = `
     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">
     <style>
       g{stroke-width: 0;fill: currentColor;}
@@ -1311,21 +1348,21 @@ class ToolTip extends HTMLElement{
     this.tip.id = "tip";
     this.tip.innerHTML = this.getAttribute("title");
     this.shadowRoot.append(this.tip);
-    
+
     this.addEventListener("click", this.show);
     this.hide = this.#hide.bind(this);
   }
-  show(e){
+  show(e) {
     e.stopPropagation();
     const marginRight = window.innerWidth - (this.getBoundingClientRect().x + 270);
-    if(marginRight < 0){
+    if (marginRight < 0) {
       this.tip.style.transform = `translateX(${marginRight}px)`;
     }
     this.removeEventListener("click", this.show);
     document.addEventListener("click", this.hide);
     this.tip.style.display = "block";
   }
-  #hide(){
+  #hide() {
     this.tip.style.transform = "";
     document.removeEventListener("click", this.hide);
     this.tip.style.display = "none";
@@ -1548,13 +1585,13 @@ const titleManager = new class {
   doingAct;
   summaryFromView;
   svgContainer;
-  IntervalId;
   favicon;
   faviconHrefOrg;
   title;
   titleTextOrg;
   iconHand;
   iconParts;
+  registeredJob;
   constructor() {
     Store.onChange(storeKeys.doingAct, this);
     Store.onChange(storeKeys.isActDoing, this);
@@ -1590,16 +1627,15 @@ const titleManager = new class {
       case storeKeys.doingAct:
         this.doingAct = value;
         if (this.doingAct) {
-          this.IntervalId = setInterval(() => this.proc(), 1000);
+          this.registeredJob = this.proc.bind(this);
+          Cron.add(1_000, this.registeredJob);
         }
         break;
       case storeKeys.isActDoing:
-        if (this.IntervalId && !value) {
-          clearInterval(this.IntervalId);
-          this.IntervalId = null;
+        if (!value) {
+          Cron.remove(1_000, this.registeredJob);
           this.title.text = this.titleTextOrg;
           this.favicon.href = this.faviconHrefOrg;
-
         }
         break;
       default:
@@ -1652,8 +1688,7 @@ const pereodic = new class {
   doingAct;
   doneActList;
   calendarId;
-  /** @type {Act} */
-  timeoutID;
+  registeredJob;
   constructor() {
     Store.onChange(storeKeys.isSignedIn, this);
     Store.onChange(storeKeys.settings, this);
@@ -1674,30 +1709,29 @@ const pereodic = new class {
         break;
       case storeKeys.isSignedIn:
         if (value) {
-          this.init();
+          this.registeredJob = this.periodicProc.bind(this);
+          Cron.add(60_000, this.registeredJob);
         } else {
-          clearTimeout(this.timeoutID);
+          Cron.remove(60_000, this.registeredJob);
         }
         break;
       default:
     }
   }
-  init() {
-    Queue.add(this.periodicProc.bind(this));
-    this.timeoutID = setTimeout(this.init.bind(this), 60_000);
-  }
   periodicProc() {
-    if (this.isActDoing) {
-      if (this.doingAct.isSynced) {
-        // check if doingTask has been done
-        return this.checkDone();
+    Queue.add(() => {
+      if (this.isActDoing) {
+        if (this.doingAct.isSynced) {
+          // check if doingTask has been done
+          return this.checkDone();
+        } else {
+          // doingTask haven't been synced yet, so try to sync.
+          return this.syncDoingAct(this.doingAct);
+        }
       } else {
-        // doingTask haven't been synced yet, so try to sync.
-        return this.syncDoingAct(this.doingAct);
+        return this.checkDoing();
       }
-    } else {
-      return this.checkDoing();
-    }
+    });
   }
   checkDone() {
     return API.getEvent({ eventId: this.doingAct.id })
