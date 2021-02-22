@@ -54,6 +54,8 @@ const storeKeys = {
   isSignedIn: "isSignedIn",
   notice: "notice",
   doneActList: "doneActList",
+  sw: "sw",
+  idb: "idb"
 };
 
 /* *************************************** */
@@ -959,50 +961,59 @@ class ActEnd extends HTMLButtonElement {
     Store.onChange(storeKeys.isSignedIn, this);
     Store.onChange(storeKeys.doingAct, this);
     Store.onChange(storeKeys.doneActList, this);
+    Store.onChange(storeKeys.sw, this);
+    Store.onChange(storeKeys.idb, this);
   }
   connectedCallback() {
     this.addEventListener("click", () => {
+      this.endProc(new Date(Date.now() + 1000));
+    })
+  }
+
+  /**
+   * @param {Date} end
+   * @memberof ActEnd
+   */
+  endProc(end){
+    Queue.add(() => {
+      if(!this.doingAct) return;
+
       const start = new Date(this.doingAct.start);
-      const end = new Date(Date.now() + 1000);
 
       this.doingAct.end = end.getTime();
       this.doingAct.summary = `${this.summary} (${this.doingAct.elapsedTime})`;
       this.doingAct.description = this.description;
       Store.set(storeKeys.isActDoing, false);
 
-      Queue.add(() => {
-        if (this.isSignedIn) {
-          const syncMethod = this.doingAct.isSynced ? API.updateEvent.bind(API) : API.insertEvent.bind(API);
+      if (this.isSignedIn) {
+        const syncMethod = this.doingAct.isSynced ? API.updateEvent.bind(API) : API.insertEvent.bind(API);
 
-          return syncMethod({
-            eventId: this.doingAct.id,
-            summary: this.doingAct.summary,
-            description: this.doingAct.description,
-            start: start.toISOString(),
-            end: end.toISOString()
+        return syncMethod({
+          eventId: this.doingAct.id,
+          summary: this.doingAct.summary,
+          description: this.doingAct.description,
+          start: start.toISOString(),
+          end: end.toISOString()
+        })
+          .then(res => {
+            console.log(res);
+            this.doingAct.isSynced = true;
+            this.doingAct.id = res.result.id;
+            this.doingAct.link = res.result.htmlLink;
           })
-            .then(res => {
-              console.log(res);
-              this.doingAct.isSynced = true;
-              this.doingAct.id = res.result.id;
-              this.doingAct.link = res.result.htmlLink;
-            })
-            .catch(err => {
-              console.log(err);
-              this.doingAct.isSynced = false;
-              handleRejectedCommon(err);
-            })
-            .then(() => {
-              postEndProc(this.doneActList, this.doingAct);
-            });
-        } else {
-          postEndProc(this.doneActList, this.doingAct);
-        }
-      });
-    })
+          .catch(err => {
+            console.log(err);
+            this.doingAct.isSynced = false;
+            handleRejectedCommon(err);
+          })
+          .then(() => {
+            postEndProc(this.doneActList, this.doingAct);
+          });
+      } else {
+        postEndProc(this.doneActList, this.doingAct);
+      }
+    });
   }
-
-
   update({ key, value }) {
     switch (key) {
       case storeKeys.doingAct:
@@ -1026,6 +1037,14 @@ class ActEnd extends HTMLButtonElement {
         break;
       case storeKeys.doneActList:
         this.doneActList = value;
+        break;
+      case storeKeys.sw:
+        this.dispatchEvent(new Event("click"));
+        break;
+      case storeKeys.idb:
+        if(value && this.doingAct.start == value.start){
+          this.endProc(new Date(value.end));
+        }
         break;
       default:
     }
@@ -1220,7 +1239,7 @@ class DoneAct extends HTMLElement {
 
   }
   restart() {
-    Store.set(storeKeys.summaryToView, this.act.summary.replace(/ \([^(]*\d?m\)$/,""));
+    Store.set(storeKeys.summaryToView, this.act.summary.replace(/ \([^(]*\d?m\)$/, ""));
     Store.set(storeKeys.descriptionToView, this.act.description);
   }
   sync() {
@@ -1568,6 +1587,9 @@ function appInit() {
   }));
 
   storageManager.init();
+  idbManager.get()
+    .then(val => Store.set(storeKeys.idb, val))
+    .catch(ev => console.log(ev));
 }
 
 function updateCalendarlist() {
@@ -1636,6 +1658,78 @@ const coordinator = new class {
         break;
       default:
     }
+  }
+}
+const workerManager = new class {
+  doingAct;
+  settings;
+  registration;
+  serviceWorker;
+  constructor() {
+    Store.onChange(storeKeys.doingAct, this);
+    Store.onChange(storeKeys.settings, this);
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener("message", this.recieve.bind(this));
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          this.registration = registration;
+          this.serviceWorker = registration.active;
+          this.proc();
+        })
+        .catch(error => console.log('Service worker registration failed, error:', error));
+    }
+  }
+  update({ key, value }) {
+    switch (key) {
+      case storeKeys.doingAct:
+      case storeKeys.settings:
+        this[key] = value;
+        this.proc();
+        break;
+      default:
+    }
+  }
+  proc() {
+    if (this.serviceWorker) {
+      if (this.doingAct && this.settings.notificationEnabled) {
+        this.registeredJob = function () { this.serviceWorker.postMessage(this.doingAct) }.bind(this);
+        this.serviceWorker.postMessage(this.doingAct);
+        Cron.add(60_000, this.registeredJob);
+      } else {
+        Cron.remove(60_000, this.registeredJob);
+        this.serviceWorker.postMessage(null);
+      }
+    }
+  }
+  recieve(e) {
+    Store.set(storeKeys.sw, e.data);
+  }
+}
+
+const idbManager = new class {
+  constructor() {
+    const openRequest = indexedDB.open("logoca", 1);
+    openRequest.onupgradeneeded = function (ev) {
+      // initialize, or update idb
+      const db = ev.target.result;
+      console.log(db);
+      // only one record in 'sw' store, key: 0, value: {start, end}.
+      db.createObjectStore('sw');
+    }
+
+    this.db = new Promise(resolve => {
+      openRequest.onsuccess = ev => resolve(ev.target.result);
+    })
+  }
+  get() {
+    return this.db.then(db => {
+      const req = db.transaction("sw", "readonly").objectStore("sw").get(0);
+      return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => resolve(ev.target.result);
+        req.onerrors = (ev) => reject(ev);
+      })
+    });
   }
 }
 const titleManager = new class {
@@ -1767,6 +1861,7 @@ const pereodic = new class {
       case storeKeys.isSignedIn:
         if (value) {
           this.registeredJob = this.periodicProc.bind(this);
+          this.periodicProc.bind(this)();
           Cron.add(60_000, this.registeredJob);
         } else {
           Cron.remove(60_000, this.registeredJob);
@@ -1906,3 +2001,5 @@ Store.onChange(storeKeys.doingAct, dbg);
 Store.onChange(storeKeys.doneActList, dbg);
 Store.onChange(storeKeys.addedCalendar, dbg);
 Store.onChange(storeKeys.calendars, dbg);
+Store.onChange(storeKeys.sw, dbg);
+Store.onChange(storeKeys.idb, dbg);
