@@ -54,6 +54,8 @@ const storeKeys = {
   isSignedIn: "isSignedIn",
   notice: "notice",
   doneActList: "doneActList",
+  sw: "sw",
+  idb: "idb"
 };
 
 /* *************************************** */
@@ -65,6 +67,42 @@ const Queue = {
     this._queue = this._queue.then(f);
   }
 };
+
+class Cron {
+  // key: {Number} ms, value: {object} {{Number} intervalId, {Array<function>} jobTable}
+  static #jobRegister = new Map();
+  static add(ms, f) {
+    let jobs;
+    if (this.#jobRegister.has(ms)) {
+      jobs = this.#jobRegister.get(ms);
+      jobs.jobTable.push(f);
+    } else {
+      jobs = { jobTable: [f] };
+      this.#jobRegister.set(ms, jobs);
+    }
+
+    if (jobs.jobTable.length == 1) {
+      jobs.intervalId = setInterval(() => {
+        jobs.jobTable.forEach(f => f());
+      }, ms)
+    }
+  }
+  static remove(ms, f) {
+    if (this.#jobRegister.has(ms)) {
+      const { jobTable, intervalId } = this.#jobRegister.get(ms);
+      const index = jobTable.findIndex(job => job === f);
+      if (index >= 0) {
+        jobTable.splice(index, 1);
+        if (jobTable.length == 0) {
+          clearInterval(intervalId);
+        }
+      } else {
+        console.log("not found");
+      }
+    }
+  }
+}
+
 
 class MyDate extends Date {
   /**
@@ -255,12 +293,14 @@ function Settings({
   upcomingEnabled = "",
   upcomingCalendarId = "",
   logCalendarId = "",
-  colorId = ""
+  colorId = "",
+  notificationEnabled = ""
 }) {
   this.upcomingEnabled = upcomingEnabled;
   this.upcomingCalendarId = upcomingCalendarId;
   this.logCalendarId = logCalendarId;
   this.colorId = colorId;
+  this.notificationEnabled = notificationEnabled;
 }
 /**
  * アクションデータクラス
@@ -307,8 +347,14 @@ const $ = (id) => document.getElementById(id);
  * - `data-action="close"`属性：クリックされるとモーダルを閉じる
  * - `data-action="signin"`属性：クリックされるとサインイン処理
  * - `data-action="logout"`属性：クリックされるとログアウト処理
+ * - `data-action="apply"`属性：クリックされると設定を保存
  * - `data-state="logedout"`: 非ログイン状態で表示
  * - `data-state="signedin"`: ログイン状態で表示
+ * - `data-role="upcoming_enabled"`: 予定の取得を有効化チェックボックス
+ * - `data-role="upcoming_calendar_id"`: 予定を取得するカレンダーセレクトボックス
+ * - `data-role="log_calendar_id"`: ログを記録するカレンダーセレクトボックス
+ * - `data-role="color_id"`: イベントカラーラジオボタン
+ * 
  * 
  * @class SettingsModal
  * @extends {HTMLElement}
@@ -320,6 +366,7 @@ class SettingsModal extends HTMLElement {
   upcomingCalendarId;
   logCalendarId;
   colorId;
+  notificationEnabled;
 
   constructor() {
     super();
@@ -343,6 +390,9 @@ class SettingsModal extends HTMLElement {
         case "color_id":
           this.colorId = elm;
           break;
+        case "notification_enabled":
+          this.notificationEnabled = elm;
+          break;
         default:
       }
     });
@@ -363,6 +413,7 @@ class SettingsModal extends HTMLElement {
         this.appliedSetting = value;
       // continue
       case storeKeys.calendars:
+        // wait calendar selectors updating
         setTimeout(() => this.init(this.appliedSetting), 0);
         break;
       case storeKeys.isModalOpen:
@@ -410,7 +461,8 @@ class SettingsModal extends HTMLElement {
       upcomingEnabled: this.upcomingEnabled.checked,
       upcomingCalendarId: this.upcomingCalendarId.value,
       logCalendarId: this.logCalendarId.value,
-      colorId: this.colorId.value
+      colorId: this.colorId.value,
+      notificationEnabled: this.notificationEnabled.checked
     });
     Store.set(storeKeys.settings, newSettings);
     this.close();
@@ -421,6 +473,7 @@ class SettingsModal extends HTMLElement {
     this.upcomingCalendarId.disabled = !settings.upcomingEnabled;
     this.logCalendarId.value = settings.logCalendarId;
     this.colorId.value = settings.colorId;
+    this.notificationEnabled.checked = settings.notificationEnabled;
   }
 }
 
@@ -561,12 +614,14 @@ class NewCalendar extends HTMLInputElement {
 
 class AddCalendar extends HTMLButtonElement {
   tmpNewCalendar;
+  IntervalId;
   constructor() {
     super();
     Store.onChange(storeKeys.tmpNewCalendar, this);
     Store.onChange(storeKeys.isAddCalInProgress, this);
   }
   connectedCallback() {
+    this.style.transitionDuration = "500ms";
     this.addEventListener("click", () => {
       this.addCalendarProc(this.tmpNewCalendar);
     })
@@ -575,9 +630,11 @@ class AddCalendar extends HTMLButtonElement {
     switch (key) {
       case storeKeys.tmpNewCalendar:
         this.tmpNewCalendar = value;
+        this.blink(value);
         break;
       case storeKeys.isAddCalInProgress:
         if (value) {
+          this.blink("");
           this.classList.add("is-loading");
         } else {
           this.classList.remove("is-loading");
@@ -605,8 +662,17 @@ class AddCalendar extends HTMLButtonElement {
         Store.set(storeKeys.isAddCalInProgress, false);
       })
   }
-
-
+  blink(text) {
+    if (text && !this.IntervalId) {
+      this.IntervalId = setInterval(() => {
+        this.classList.add("has-text-warning");
+        setTimeout(() => this.classList.remove("has-text-warning"), 500);
+      }, 1000);
+    } else if (!text && this.IntervalId) {
+      clearInterval(this.IntervalId);
+      this.IntervalId = null;
+    }
+  }
 }
 
 /**
@@ -667,6 +733,48 @@ class EventColor extends HTMLElement {
   }
   set value(val) {
     this.form.ev.value = val;
+  }
+}
+
+class NotificationCheck extends HTMLInputElement {
+  permission;
+  constructor() {
+    super();
+    if (!("Notification" in window)) {
+      this.disabled = true;
+    } else {
+      this.permission = Notification.permission;
+    }
+  }
+  connectedCallback() {
+    Store.set(storeKeys.notificationEnabled, this.checked);
+
+    this.addEventListener("input", () => {
+      if (this.checked) {
+        if (this.permission === "denied") {
+          Store.set(storeKeys.notice, new DATA.Notice({ message: "このアプリからの通知が拒否されています。<br>デバイス、またはブラウザの設定を確認してください。" }));
+          this.checked = false;
+        } else {
+          const callback = permission => {
+            if (permission != "granted") {
+              this.checked = false;
+            }
+          };
+          try {
+            Notification.requestPermission().then(callback);
+          } catch (e) {
+            console.log(e)
+            Notification.requestPermission(callback);
+          }
+        }
+      }
+    })
+  }
+  set checked(val) {
+    super.checked = (val && this.permission === "granted") ? true : false;
+  }
+  get checked() {
+    return super.checked;
   }
 }
 
@@ -853,50 +961,59 @@ class ActEnd extends HTMLButtonElement {
     Store.onChange(storeKeys.isSignedIn, this);
     Store.onChange(storeKeys.doingAct, this);
     Store.onChange(storeKeys.doneActList, this);
+    Store.onChange(storeKeys.sw, this);
+    Store.onChange(storeKeys.idb, this);
   }
   connectedCallback() {
     this.addEventListener("click", () => {
+      this.endProc(new Date(Date.now() + 1000));
+    })
+  }
+
+  /**
+   * @param {Date} end
+   * @memberof ActEnd
+   */
+  endProc(end){
+    Queue.add(() => {
+      if(!this.doingAct) return;
+
       const start = new Date(this.doingAct.start);
-      const end = new Date(Date.now() + 1000);
 
       this.doingAct.end = end.getTime();
       this.doingAct.summary = `${this.summary} (${this.doingAct.elapsedTime})`;
       this.doingAct.description = this.description;
       Store.set(storeKeys.isActDoing, false);
 
-      Queue.add(() => {
-        if (this.isSignedIn) {
-          const syncMethod = this.doingAct.isSynced ? API.updateEvent.bind(API) : API.insertEvent.bind(API);
+      if (this.isSignedIn) {
+        const syncMethod = this.doingAct.isSynced ? API.updateEvent.bind(API) : API.insertEvent.bind(API);
 
-          return syncMethod({
-            eventId: this.doingAct.id,
-            summary: this.doingAct.summary,
-            description: this.doingAct.description,
-            start: start.toISOString(),
-            end: end.toISOString()
+        return syncMethod({
+          eventId: this.doingAct.id,
+          summary: this.doingAct.summary,
+          description: this.doingAct.description,
+          start: start.toISOString(),
+          end: end.toISOString()
+        })
+          .then(res => {
+            console.log(res);
+            this.doingAct.isSynced = true;
+            this.doingAct.id = res.result.id;
+            this.doingAct.link = res.result.htmlLink;
           })
-            .then(res => {
-              console.log(res);
-              this.doingAct.isSynced = true;
-              this.doingAct.id = res.result.id;
-              this.doingAct.link = res.result.htmlLink;
-            })
-            .catch(err => {
-              console.log(err);
-              this.doingAct.isSynced = false;
-              handleRejectedCommon(err);
-            })
-            .then(() => {
-              postEndProc(this.doneActList, this.doingAct);
-            });
-        } else {
-          postEndProc(this.doneActList, this.doingAct);
-        }
-      });
-    })
+          .catch(err => {
+            console.log(err);
+            this.doingAct.isSynced = false;
+            handleRejectedCommon(err);
+          })
+          .then(() => {
+            postEndProc(this.doneActList, this.doingAct);
+          });
+      } else {
+        postEndProc(this.doneActList, this.doingAct);
+      }
+    });
   }
-
-
   update({ key, value }) {
     switch (key) {
       case storeKeys.doingAct:
@@ -921,6 +1038,14 @@ class ActEnd extends HTMLButtonElement {
       case storeKeys.doneActList:
         this.doneActList = value;
         break;
+      case storeKeys.sw:
+        this.dispatchEvent(new Event("click"));
+        break;
+      case storeKeys.idb:
+        if(value && this.doingAct.start == value.start){
+          this.endProc(new Date(value.end));
+        }
+        break;
       default:
     }
   }
@@ -932,9 +1057,9 @@ class ActEnd extends HTMLButtonElement {
  * @extends {HTMLElement}
  */
 class TimeElapsed extends HTMLElement {
-  timeoutID;
   start;
   doingAct;
+  registeredJob;
   connectedCallback() {
     this.init();
     Store.onChange(storeKeys.isActDoing, this);
@@ -952,17 +1077,18 @@ class TimeElapsed extends HTMLElement {
       case storeKeys.isActDoing:
         if (value) {
         } else {
-          clearTimeout(this.timeoutID);
+          Cron.remove(1000, this.registeredJob);
           this.init();
-          this.timeoutID = null;
           this.start = null;
         }
         break;
       case storeKeys.doingAct:
         this.doingAct = value;
-        if (!value || this.timeoutID) return;
+        if (!value) return;
         this.start = value.start;
         this.doTimeout();
+        this.registeredJob = this.doTimeout.bind(this);
+        Cron.add(1000, this.registeredJob);
         break;
       default:
     }
@@ -972,16 +1098,16 @@ class TimeElapsed extends HTMLElement {
     this.innerHTML = "00:00:00";
   }
   doTimeout() {
-    this.calcElapsedTime(this.start, Date.now());
-    this.timeoutID = setTimeout(() => { this.doTimeout() }, 1000);
+    const [h, m, s] = this.calcElapsedTime(this.start, Date.now());
+    this.innerHTML = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    this.doingAct.elapsedTime = `${h == 0 ? "" : h + "h"}${m}m`;
   }
   calcElapsedTime(start, end) {
     const elapsedTime = Math.floor((end - start) / 1000);
     const h = Math.floor(elapsedTime / (60 * 60));
     const m = Math.floor(elapsedTime / 60) % 60;
     const s = elapsedTime % 60;
-    this.innerHTML = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-    this.doingAct.elapsedTime = `${h == 0 ? "" : h + "h"}${m}m`;
+    return [h, m, s];
   }
 }
 
@@ -1253,6 +1379,67 @@ class UpcomingActList extends HTMLElement {
   }
 }
 
+class ToolTip extends HTMLElement {
+  tip;
+  constructor() {
+    super();
+    this.style.cursor = "help";
+    this.style.position = "relative";
+  }
+  connectedCallback() {
+    this.attachShadow({ mode: 'open' }).innerHTML = `
+    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">
+    <style>
+      g{stroke-width: 0;fill: currentColor;}
+      #tip{
+        position: absolute;
+        top: 0.5rem;
+        left: 1rem;
+        background: black;
+        color: white;
+        font-size: 11px;
+        font-weight: normal;
+        opacity: 0.8;
+        padding: 3px;
+        border-radius: 3px;
+        z-index: 10;
+        width: 250px;
+        display: none;
+        user-select: none ;
+      }
+    </style>
+    <g>
+    <path d="M14 9.5c0-0.825 0.675-1.5 1.5-1.5h1c0.825 0 1.5 0.675 1.5 1.5v1c0 0.825-0.675 1.5-1.5 1.5h-1c-0.825 0-1.5-0.675-1.5-1.5v-1z"></path>
+    <path d="M20 24h-8v-2h2v-6h-2v-2h6v8h2z"></path>
+    <path d="M16 0c-8.837 0-16 7.163-16 16s7.163 16 16 16 16-7.163 16-16-7.163-16-16-16zM16 29c-7.18 0-13-5.82-13-13s5.82-13 13-13 13 5.82 13 13-5.82 13-13 13z"></path>
+    </g></svg>
+    `
+    this.tip = document.createElement("div");
+    this.tip.id = "tip";
+    this.tip.innerHTML = this.getAttribute("title");
+    this.shadowRoot.append(this.tip);
+
+    this.addEventListener("click", this.show);
+    this.hide = this.#hide.bind(this);
+  }
+  show(e) {
+    e.stopPropagation();
+    const marginRight = window.innerWidth - (this.getBoundingClientRect().x + 270);
+    if (marginRight < 0) {
+      this.tip.style.transform = `translateX(${marginRight}px)`;
+    }
+    this.removeEventListener("click", this.show);
+    document.addEventListener("click", this.hide);
+    this.tip.style.display = "block";
+  }
+  #hide() {
+    this.tip.style.transform = "";
+    document.removeEventListener("click", this.hide);
+    this.tip.style.display = "none";
+    this.addEventListener("click", this.show);
+  }
+}
+
 
 
 const customTags = {
@@ -1297,6 +1484,11 @@ const customTags = {
     name: "eve-col",
     class: EventColor
   },
+  NotificationCheck: {
+    custom: "input",
+    name: "notification-check",
+    class: NotificationCheck
+  },
   Summary: {
     custom: "input",
     name: "act-summary",
@@ -1339,6 +1531,10 @@ const customTags = {
   UpcomingActList: {
     name: "upcoming-act-list",
     class: UpcomingActList
+  },
+  ToolTip: {
+    name: "tool-tip",
+    class: ToolTip
   },
 }
 for (const key in customTags) {
@@ -1386,10 +1582,14 @@ function appInit() {
     logCalendarId: "primary",
     upcomingCalendarId: "primary",
     upcomingEnabled: false,
-    colorId: "1"
+    colorId: "1",
+    notificationEnabled: false
   }));
 
   storageManager.init();
+  idbManager.get()
+    .then(val => Store.set(storeKeys.idb, val))
+    .catch(ev => console.log(ev));
 }
 
 function updateCalendarlist() {
@@ -1460,17 +1660,89 @@ const coordinator = new class {
     }
   }
 }
+const workerManager = new class {
+  doingAct;
+  settings;
+  registration;
+  serviceWorker;
+  constructor() {
+    Store.onChange(storeKeys.doingAct, this);
+    Store.onChange(storeKeys.settings, this);
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener("message", this.recieve.bind(this));
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          this.registration = registration;
+          this.serviceWorker = registration.active;
+          this.proc();
+        })
+        .catch(error => console.log('Service worker registration failed, error:', error));
+    }
+  }
+  update({ key, value }) {
+    switch (key) {
+      case storeKeys.doingAct:
+      case storeKeys.settings:
+        this[key] = value;
+        this.proc();
+        break;
+      default:
+    }
+  }
+  proc() {
+    if (this.serviceWorker) {
+      if (this.doingAct && this.settings.notificationEnabled) {
+        this.registeredJob = function () { this.serviceWorker.postMessage(this.doingAct) }.bind(this);
+        this.serviceWorker.postMessage(this.doingAct);
+        Cron.add(60_000, this.registeredJob);
+      } else {
+        Cron.remove(60_000, this.registeredJob);
+        this.serviceWorker.postMessage(null);
+      }
+    }
+  }
+  recieve(e) {
+    Store.set(storeKeys.sw, e.data);
+  }
+}
+
+const idbManager = new class {
+  constructor() {
+    const openRequest = indexedDB.open("logoca", 1);
+    openRequest.onupgradeneeded = function (ev) {
+      // initialize, or update idb
+      const db = ev.target.result;
+      console.log(db);
+      // only one record in 'sw' store, key: 0, value: {start, end}.
+      db.createObjectStore('sw');
+    }
+
+    this.db = new Promise(resolve => {
+      openRequest.onsuccess = ev => resolve(ev.target.result);
+    })
+  }
+  get() {
+    return this.db.then(db => {
+      const req = db.transaction("sw", "readonly").objectStore("sw").get(0);
+      return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => resolve(ev.target.result);
+        req.onerrors = (ev) => reject(ev);
+      })
+    });
+  }
+}
 const titleManager = new class {
   doingAct;
   summaryFromView;
   svgContainer;
-  IntervalId;
   favicon;
   faviconHrefOrg;
   title;
   titleTextOrg;
   iconHand;
   iconParts;
+  registeredJob;
   constructor() {
     Store.onChange(storeKeys.doingAct, this);
     Store.onChange(storeKeys.isActDoing, this);
@@ -1506,16 +1778,15 @@ const titleManager = new class {
       case storeKeys.doingAct:
         this.doingAct = value;
         if (this.doingAct) {
-          this.IntervalId = setInterval(() => this.proc(), 1000);
+          this.registeredJob = this.proc.bind(this);
+          Cron.add(1_000, this.registeredJob);
         }
         break;
       case storeKeys.isActDoing:
-        if (this.IntervalId && !value) {
-          clearInterval(this.IntervalId);
-          this.IntervalId = null;
+        if (!value) {
+          Cron.remove(1_000, this.registeredJob);
           this.title.text = this.titleTextOrg;
           this.favicon.href = this.faviconHrefOrg;
-
         }
         break;
       default:
@@ -1568,8 +1839,7 @@ const pereodic = new class {
   doingAct;
   doneActList;
   calendarId;
-  /** @type {Act} */
-  timeoutID;
+  registeredJob;
   constructor() {
     Store.onChange(storeKeys.isSignedIn, this);
     Store.onChange(storeKeys.settings, this);
@@ -1590,30 +1860,30 @@ const pereodic = new class {
         break;
       case storeKeys.isSignedIn:
         if (value) {
-          this.init();
+          this.registeredJob = this.periodicProc.bind(this);
+          this.periodicProc.bind(this)();
+          Cron.add(60_000, this.registeredJob);
         } else {
-          clearTimeout(this.timeoutID);
+          Cron.remove(60_000, this.registeredJob);
         }
         break;
       default:
     }
   }
-  init() {
-    Queue.add(this.periodicProc.bind(this));
-    this.timeoutID = setTimeout(this.init.bind(this), 60_000);
-  }
   periodicProc() {
-    if (this.isActDoing) {
-      if (this.doingAct.isSynced) {
-        // check if doingTask has been done
-        return this.checkDone();
+    Queue.add(() => {
+      if (this.isActDoing) {
+        if (this.doingAct.isSynced) {
+          // check if doingTask has been done
+          return this.checkDone();
+        } else {
+          // doingTask haven't been synced yet, so try to sync.
+          return this.syncDoingAct(this.doingAct);
+        }
       } else {
-        // doingTask haven't been synced yet, so try to sync.
-        return this.syncDoingAct(this.doingAct);
+        return this.checkDoing();
       }
-    } else {
-      return this.checkDoing();
-    }
+    });
   }
   checkDone() {
     return API.getEvent({ eventId: this.doingAct.id })
@@ -1731,3 +2001,5 @@ Store.onChange(storeKeys.doingAct, dbg);
 Store.onChange(storeKeys.doneActList, dbg);
 Store.onChange(storeKeys.addedCalendar, dbg);
 Store.onChange(storeKeys.calendars, dbg);
+Store.onChange(storeKeys.sw, dbg);
+Store.onChange(storeKeys.idb, dbg);

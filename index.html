@@ -9,15 +9,55 @@
   <link rel="icon" type="image/png" href="img/favicon.png">
   <script defer src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
   <script defer src="index.js" onload="appInit()"></script>
-  <script defer src="https://apis.google.com/js/api.js" onload="handleClientLoad()"></script>
-  <!-- <script defer src="testing/test.js" onload="handleClientLoad()"></script> -->
+  <!-- <script defer src="https://apis.google.com/js/api.js" onload="handleClientLoad()"></script> -->
+  <script defer src="testing/test.js" onload="handleClientLoad()"></script>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css">
   <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 </head>
 
 <body>
-
+  <!-- icons >> -->
+  <svg aria-hidden="true" style="position: absolute; width: 0; height: 0; overflow: hidden;" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <style>
+      symbol{stroke-width: 0;fill: currentColor;}
+    </style>
+    <defs>
+      <symbol id="icon-add-solid" viewBox="0 0 20 20">
+        <path d="M11 9v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM10 20c-5.523 0-10-4.477-10-10s4.477-10 10-10v0c5.523 0 10 4.477 10 10s-4.477 10-10 10v0z"></path>
+      </symbol>
+      <symbol id="icon-add-outline" viewBox="0 0 20 20">
+        <path d="M11 9h4v2h-4v4h-2v-4h-4v-2h4v-4h2v4zM10 20c-5.523 0-10-4.477-10-10s4.477-10 10-10v0c5.523 0 10 4.477 10 10s-4.477 10-10 10v0zM10 18c4.418 0 8-3.582 8-8s-3.582-8-8-8v0c-4.418 0-8 3.582-8 8s3.582 8 8 8v0z"></path>
+      </symbol>
+      <symbol id="icon-cog" viewBox="0 0 32 32">
+        <path d="M29.181 19.070c-1.679-2.908-0.669-6.634 2.255-8.328l-3.145-5.447c-0.898 0.527-1.943 0.829-3.058 0.829-3.361 0-6.085-2.742-6.085-6.125h-6.289c0.008 1.044-0.252 2.103-0.811 3.070-1.679 2.908-5.411 3.897-8.339 2.211l-3.144 5.447c0.905 0.515 1.689 1.268 2.246 2.234 1.676 2.903 0.672 6.623-2.241 8.319l3.145 5.447c0.895-0.522 1.935-0.82 3.044-0.82 3.35 0 6.067 2.725 6.084 6.092h6.289c-0.003-1.034 0.259-2.080 0.811-3.038 1.676-2.903 5.399-3.894 8.325-2.219l3.145-5.447c-0.899-0.515-1.678-1.266-2.232-2.226zM16 22.479c-3.578 0-6.479-2.901-6.479-6.479s2.901-6.479 6.479-6.479c3.578 0 6.479 2.901 6.479 6.479s-2.901 6.479-6.479 6.479z"></path>
+      </symbol>
+      <symbol id="icon-plus" viewBox="0 0 32 32">
+        <path d="M31 12h-11v-11c0-0.552-0.448-1-1-1h-6c-0.552 0-1 0.448-1 1v11h-11c-0.552 0-1 0.448-1 1v6c0 0.552 0.448 1 1 1h11v11c0 0.552 0.448 1 1 1h6c0.552 0 1-0.448 1-1v-11h11c0.552 0 1-0.448 1-1v-6c0-0.552-0.448-1-1-1z"></path>
+      </symbol>
+      <symbol id="icon-info" viewBox="0 0 32 32">
+        <path d="M14 9.5c0-0.825 0.675-1.5 1.5-1.5h1c0.825 0 1.5 0.675 1.5 1.5v1c0 0.825-0.675 1.5-1.5 1.5h-1c-0.825 0-1.5-0.675-1.5-1.5v-1z"></path>
+        <path d="M20 24h-8v-2h2v-6h-2v-2h6v8h2z"></path>
+        <path d="M16 0c-8.837 0-16 7.163-16 16s7.163 16 16 16 16-7.163 16-16-7.163-16-16-16zM16 29c-7.18 0-13-5.82-13-13s5.82-13 13-13 13 5.82 13 13-5.82 13-13 13z"></path>
+      </symbol>
+      <symbol id="icon-play-outline" viewBox="0 0 32 32">
+        <path d="M16 0c-8.837 0-16 7.163-16 16s7.163 16 16 16 16-7.163 16-16-7.163-16-16-16zM16 29c-7.18 0-13-5.82-13-13s5.82-13 13-13 13 5.82 13 13-5.82 13-13 13zM12 9l12 7-12 7z"></path>
+      </symbol>
+      <symbol id="icon-stop-outline" viewBox="0 0 32 32">
+        <path d="M16 0c-8.837 0-16 7.163-16 16s7.163 16 16 16 16-7.163 16-16-7.163-16-16-16zM16 29c-7.18 0-13-5.82-13-13s5.82-13 13-13 13 5.82 13 13-5.82 13-13 13zM10 10h12v12h-12z"></path>
+      </symbol>
+      <symbol id="icon-play" viewBox="0 0 32 32">
+        <path d="M6 4l20 12-20 12z"></path>
+      </symbol>
+      <symbol id="icon-stop" viewBox="0 0 32 32">
+        <path d="M4 4h24v24h-24z"></path>
+      </symbol>
+      <symbol id="icon-github" viewBox="0 0 32 32">
+        <path d="M16 0.395c-8.836 0-16 7.163-16 16 0 7.069 4.585 13.067 10.942 15.182 0.8 0.148 1.094-0.347 1.094-0.77 0-0.381-0.015-1.642-0.022-2.979-4.452 0.968-5.391-1.888-5.391-1.888-0.728-1.849-1.776-2.341-1.776-2.341-1.452-0.993 0.11-0.973 0.11-0.973 1.606 0.113 2.452 1.649 2.452 1.649 1.427 2.446 3.743 1.739 4.656 1.33 0.143-1.034 0.558-1.74 1.016-2.14-3.554-0.404-7.29-1.777-7.29-7.907 0-1.747 0.625-3.174 1.649-4.295-0.166-0.403-0.714-2.030 0.155-4.234 0 0 1.344-0.43 4.401 1.64 1.276-0.355 2.645-0.532 4.005-0.539 1.359 0.006 2.729 0.184 4.008 0.539 3.054-2.070 4.395-1.64 4.395-1.64 0.871 2.204 0.323 3.831 0.157 4.234 1.026 1.12 1.647 2.548 1.647 4.295 0 6.145-3.743 7.498-7.306 7.895 0.574 0.497 1.085 1.47 1.085 2.963 0 2.141-0.019 3.864-0.019 4.391 0 0.426 0.288 0.925 1.099 0.768 6.354-2.118 10.933-8.113 10.933-15.18 0-8.837-7.164-16-16-16z"></path>
+      </symbol>
+    </defs>
+  </svg>
+  <!-- << icons -->
   <section class="hero is-light" style="height:100%">
     <div class="hero-head">
       <nav class="navbar">
@@ -26,7 +66,7 @@
         </div>
         <div class="navbar-menu is-active">
           <div class="navbar-end  is-flex is-flex-direction-row-reverse">
-            <modal-open id="open_settings" class="button is-light">⚙️</modal-open>
+            <modal-open id="open_settings" class="button is-light"><svg class="icon" fill="#AAA"><use xlink:href="#icon-cog"></use></svg></modal-open>
           </div>
         </div>
       </nav>
@@ -40,8 +80,8 @@
             <time-elapsed class="is-size-1 has-text-weight-bold mx-1"></time-elapsed>
           </div>
           <div class="is-pulled-right">
-            <button is="act-end" style="width:100px" class="button is-danger is-large has-text-weight-bold m-1 is-hidden">end</button>
-            <button is="act-start" style="width:100px" class="button is-primary is-large has-text-weight-bold m-1">start</button>
+            <button is="act-end" class="button is-danger is-large has-text-weight-bold m-1 is-hidden"><svg class="icon" fill="#DDD"><use xlink:href="#icon-stop"></use></svg></button>
+            <button is="act-start" class="button is-primary is-large has-text-weight-bold m-1"><svg class="icon" fill="#DDD"><use xlink:href="#icon-play"></use></svg></button>
           </div>
         </div>
         <upcoming-act-list id="upcoming_container" class="message mb-1 is-hidden">
@@ -101,7 +141,7 @@
         <div data-state="logedout">
           <button data-action="signin" class="button is-link">Googleカレンダーにサインイン</button>
         </div>
-        <div data-state="signedin" class="is-hidden">
+        <div data-state="signedin" class="block is-hidden">
           <div class="field">
             <label class="label">User Profile</label>
             <div id="user_profile" class="ml-2 control is-flex is-justify-content-flex-start">
@@ -116,43 +156,52 @@
           </div>
           <div class="field">
             <label class="label">予定を取得するカレンダー</label>
-              <div class="ml-2 control">
-                <label class="checkbox"><input data-role="upcoming_enabled" type="checkbox">予定の取得を有効化</label>
+            <div class="ml-2 control">
+              <label class="checkbox"><input data-role="upcoming_enabled" type="checkbox">予定の取得を有効化</label>
+            </div>
+            <div class="ml-2 control">
+              <div class="select">
+                <select is="select-cal" data-role="upcoming_calendar_id" style="width:150px">
+                  <option value="primary">default</option>
+                </select>
               </div>
-              <div class="ml-2 control">
-                <div class="select">
-                  <select is="select-cal" data-role="upcoming_calendar_id" style="width:150px">
-                    <option value="primary">default</option>
-                  </select>
+            </div>
+          </div>
+          <div class="field">
+            <label class="label">ログを記録するカレンダー</label>
+            <div claass="ml-2 control" style="display:flex">
+              <div class="select mr-2">
+                <select is="select-log" data-role="log_calendar_id" style="width:150px">
+                  <option value="primary">default</option>
+                </select>
+              </div>
+              <div class="field has-addons">
+                <div class="control">
+                  <input is="new-cal" id="new_calendar" class="input" type="text" placeholder="新規作成">
+                </div>
+                <div class="control">
+                  <button is="add-cal" class="button is-info  has-text-light"><svg class="icon"><use xlink:href="#icon-add-outline"></use></svg></button>
                 </div>
               </div>
             </div>
-            <div class="field">
-              <label class="label">ログを記録するカレンダー</label>
-              <div claass="ml-2 control" style="display:flex">
-                <div class="select mr-2">
-                  <select is="select-log" data-role="log_calendar_id" style="width:150px">        
-                    <option value="primary">default</option>
-                  </select>
-                </div>
-                <div class="field has-addons">
-                  <div class="control">
-                    <input is="new-cal" id="new_calendar" class="input" type="text" placeholder="新規作成">
-                  </div>
-                  <div class="control">
-                    <button is="add-cal" id="calendar_add_button" class="button is-info">&#x2795;</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="field">
-              <label class="label">Event Color</label>
-                <eve-col data-role="color_id"></eve-col>
-            </div>
+          </div>
+          <div class="field">
+            <label class="label">Event Color</label>
+            <eve-col data-role="color_id"></eve-col>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">
+            <span>通知</span>
+            <tool-tip class="icon is-small has-text-info" title="通知バーなどに経過時間を表示し、すばやくアクセスできるようにします。<br>初回はデバイスで許可する必要があります。"></tool-tip>
+          </label>
+          <div class="ml-2 control">
+            <label class="checkbox"><input is="notification-check" data-role="notification_enabled" type="checkbox">経過時間の通知を有効化</label>
+          </div>
         </div>
       </section>
       <footer class="modal-card-foot">
-        <button is="settings-apply" data-action="apply" data-state="signedin" class="button is-link is-hidden">保存</button>
+        <button is="settings-apply" data-action="apply" class="button is-link">保存</button>
         <button data-action="close" class="button is-link is-light">キャンセル</button>
       </footer>
     </div>
