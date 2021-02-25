@@ -5,7 +5,7 @@
  * @class Store
  */
 class Store {
-  static #data = new Map();
+  static _data = new Map();
 
   /**
    * @static
@@ -14,10 +14,10 @@ class Store {
    * @memberof Store
    */
   static onChange(key, subsriberObject) {
-    if (!this.#data.has(key)) {
-      this.#data.set(key, { value: null, SOs: [] });
+    if (!this._data.has(key)) {
+      this._data.set(key, { value: null, SOs: [] });
     }
-    this.#data.get(key).SOs.push(subsriberObject);
+    this._data.get(key).SOs.push(subsriberObject);
   }
 
   /**
@@ -27,12 +27,12 @@ class Store {
    * @memberof Store
    */
   static set(key, value) {
-    if (this.#data.has(key)) {
-      const data = this.#data.get(key);
+    if (this._data.has(key)) {
+      const data = this._data.get(key);
       data.value = value;
       data.SOs.forEach(SO => SO.update({ key: key, value: value }));
     } else {
-      this.#data.set(key, { value: value, SOs: [] });
+      this._data.set(key, { value: value, SOs: [] });
     }
   }
 };
@@ -70,15 +70,15 @@ const Queue = {
 
 class Cron {
   // key: {Number} ms, value: {object} {{Number} intervalId, {Array<function>} jobTable}
-  static #jobRegister = new Map();
+  static _jobRegister = new Map();
   static add(ms, f) {
     let jobs;
-    if (this.#jobRegister.has(ms)) {
-      jobs = this.#jobRegister.get(ms);
+    if (this._jobRegister.has(ms)) {
+      jobs = this._jobRegister.get(ms);
       jobs.jobTable.push(f);
     } else {
       jobs = { jobTable: [f] };
-      this.#jobRegister.set(ms, jobs);
+      this._jobRegister.set(ms, jobs);
     }
 
     if (jobs.jobTable.length == 1) {
@@ -88,8 +88,8 @@ class Cron {
     }
   }
   static remove(ms, f) {
-    if (this.#jobRegister.has(ms)) {
-      const { jobTable, intervalId } = this.#jobRegister.get(ms);
+    if (this._jobRegister.has(ms)) {
+      const { jobTable, intervalId } = this._jobRegister.get(ms);
       const index = jobTable.findIndex(job => job === f);
       if (index >= 0) {
         jobTable.splice(index, 1);
@@ -107,7 +107,7 @@ class Cron {
 class MyDate extends Date {
   /**
    * @param {string} fmt 日時のフォーマット文字列。
-   * [書式コード](https://docs.python.org/ja/3/library/datetime.html#strftime-and-strptime-format-codes)の一部を実装
+   * [書式コード](https://docs.python.org/ja/3/library/datetime.html_strftime-and-strptime-format-codes)の一部を実装
    * @return {string} フォーマット済み文字列
    * @memberof MyDate
    */
@@ -1196,7 +1196,7 @@ class DoneAct extends HTMLElement {
       case storeKeys.isSignedIn:
       case storeKeys.isActDoing:
         this[key] = value;
-        this.#render(this.act);
+        this._render(this.act);
         break;
       case storeKeys.doneActList:
         this[key] = value;
@@ -1209,13 +1209,13 @@ class DoneAct extends HTMLElement {
     this.act = act;
     this.isSignedIn = isSignedIn;
     this.isActDoing = isActDoing;
-    this.#render(act);
+    this._render(act);
   }
   /**
    * @param {Act} act
    * @memberof DoneAct
    */
-  #render(act) {
+  _render(act) {
     this.querySelector("[data-summary]").innerHTML = act.link ? `<a href="${act.link}" target="_blank">${act.summary}</a>` : act.summary;
     this.querySelector("[data-time]").innerHTML = `${new MyDate(act.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(act.end).strftime("%H:%M")}`;
     this.querySelector("[data-description]").innerHTML = act.description;
@@ -1253,7 +1253,7 @@ class DoneAct extends HTMLElement {
         this.act.isSynced = true;
         this.act.id = res.result.id;
         this.act.link = res.result.htmlLink;
-        this.#render(this.act);
+        this._render(this.act);
         storageManager.save(storeKeys.doneActList);
       })
       .catch(handleRejectedCommon)
@@ -1269,19 +1269,19 @@ class UpcomingAct extends HTMLElement {
   }
   update({ key, value }) {
     this[key] = value;
-    this.#render(this.act)
+    this._render(this.act)
   }
   init({ tmpl, act, isActDoing }) {
     this.innerHTML = tmpl;
     this.act = act;
     this.isActDoing = isActDoing;
-    this.#render(act);
+    this._render(act);
   }
   /**
    * @param {Act} act
    * @memberof UpcomingAct
    */
-  #render(act) {
+  _render(act) {
     this.querySelector("[data-summary]").innerHTML = `<a href="${act.link}" target="_blank">${act.summary}</a>`;
     this.querySelector("[data-time]").innerHTML = `${new MyDate(act.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(act.end).strftime("%H:%M")}`;
 
@@ -1420,7 +1420,7 @@ class ToolTip extends HTMLElement {
     this.shadowRoot.append(this.tip);
 
     this.addEventListener("click", this.show);
-    this.hide = this.#hide.bind(this);
+    this.hide = this._hide.bind(this);
   }
   show(e) {
     e.stopPropagation();
@@ -1432,7 +1432,7 @@ class ToolTip extends HTMLElement {
     document.addEventListener("click", this.hide);
     this.tip.style.display = "block";
   }
-  #hide() {
+  _hide() {
     this.tip.style.transform = "";
     document.removeEventListener("click", this.hide);
     this.tip.style.display = "none";
