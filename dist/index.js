@@ -850,7 +850,7 @@ class Description extends HTMLElement {
     });
 
     this.editor = this.querySelector(".ql-editor");
-    this.editor.classList.add("textarea");
+    this.editor.classList.add("textarea", "has-fixed-size");
     this.quill.on("text-change", () => {
       Store.set(storeKeys.descriptionFromView, this.editor.innerHTML);
       localStorage.setItem(storeKeys.descriptionToView, this.editor.innerHTML);
