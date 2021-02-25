@@ -9,3 +9,7 @@ rm src/index.js
 
 webpack
 rm dist/bundle_css.js
+
+ls -1 | grep -E -v "dist|CNAME" | xargs rm -rf
+mv dist/* ./
+rm -rf dist/
