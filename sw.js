@@ -18,8 +18,8 @@ const messageRecieveHandler = new class {
       "LoGoCa",
       {
         body: `${act.summary}(${elapsedTime})`,
-        badge: "/img/favicon.png",
-        icon: "/img/favicon.png",
+        badge: "/favicon.ico",
+        icon: "/img/logo72.png",
         renotify: false,
         silent: true,
         tag: "logoca",
