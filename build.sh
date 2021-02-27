@@ -2,14 +2,13 @@
 
 PRJROOT=$(pwd)
 HTML=${PRJROOT}/dist/index.html
-JSFILE=${PRJROOT}/dist/index.js
+JS=${PRJROOT}/dist/index.js
 
-cp ${JSFILE} src/
-cat node_modules/quill/dist/quill.min.js src/index.js > ${JSFILE}
-rm src/index.js
+mv ${JS} src/
+cat node_modules/quill/dist/quill.min.js src/index.js | sed '/sourceMap/d' > ${JS}
 
 purgecss --css node_modules/bulma/css/bulma.min.css \
-    --content ${JSFILE} ${HTML} \
+    --content ${JS} ${HTML} \
     --output src/
 
 sleep 5
