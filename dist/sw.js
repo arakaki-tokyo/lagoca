@@ -73,13 +73,14 @@ const notificationClickHandler = new class {
 const cacheHandler = new class{
   cacheVersion = "1";
   cacheItems = [
-    "/index.html",
+    "/",
     "/index.js",
     "/style.css",
     "/favicon.ico",
     "/img/logo.svg",
     "/img/favicon.svg",
-    "/img/logo72.png"
+    "/img/logo72.png",
+    "/img/logo192.png"
   ];
   constructor(){
     self.addEventListener('install', this.addCache.bind(this));
