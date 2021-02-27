@@ -12,12 +12,10 @@ const messageRecieveHandler = new class {
     }
   }
   showActNotice(act) {
-    const [h, m, s] = this.calcElapsedTime(act.start, Date.now());
-    const elapsedTime = `${h == 0 ? "" : h + "h"}${m}m`;
     self.registration.showNotification(
       "LoGoCa",
       {
-        body: `${act.summary}(${elapsedTime})`,
+        body: `${act.summary}(${act.elapsedTime})`,
         badge: "/favicon.ico",
         icon: "/img/logo72.png",
         renotify: false,
@@ -72,6 +70,34 @@ const notificationClickHandler = new class {
   }
 }
 
+const cacheHandler = new class{
+  cacheVersion = "1";
+  cacheItems = [
+    "/index.html",
+    "/index.js",
+    "/style.css",
+    "/favicon.ico",
+    "/img/logo.svg",
+    "/img/favicon.svg",
+    "/img/logo72.png"
+  ];
+  constructor(){
+    self.addEventListener('install', this.addCache.bind(this));
+    self.addEventListener('fetch', this.proxy);
+  }
+  addCache(e) {
+    e.waitUntil(
+      caches.open(this.cacheVersion)
+        .then(cache => cache.addAll(this.cacheItems))
+    );
+  }
+  proxy(e){
+    e.respondWith(
+      caches.match(e.request)
+        .then(res => res || fetch(e.request))
+    );
+  }
+}
 const idb = new class {
   db;
   constructor() {
