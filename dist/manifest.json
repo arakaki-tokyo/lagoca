@@ -2,7 +2,7 @@
   "name": "LoGoCa",
   "short_name": "LoGoCa",
   "start_url": ".",
-  "display": "fullscreen",
+  "display": "standalone",
   "background_color": "#f5f5f5",
   "description": "Google Calendar client, specialized in recording activities",
   "icons": [
