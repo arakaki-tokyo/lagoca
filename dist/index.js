@@ -1216,7 +1216,7 @@ class DoneAct extends HTMLElement {
    * @memberof DoneAct
    */
   _render(act) {
-    this.querySelector("[data-summary]").innerHTML = act.link ? `<a href="${act.link}" target="_blank">${act.summary}</a>` : act.summary;
+    this.querySelector("[data-summary]").innerHTML = act.link ? `<a href="${act.link}" target="_blank" rel="noreferrer">${act.summary}</a>` : act.summary;
     this.querySelector("[data-time]").innerHTML = `${new MyDate(act.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(act.end).strftime("%H:%M")}`;
     this.querySelector("[data-description]").innerHTML = act.description;
 

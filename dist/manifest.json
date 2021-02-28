@@ -4,6 +4,7 @@
   "start_url": ".",
   "display": "standalone",
   "background_color": "#f5f5f5",
+  "theme_color": "#004422",
   "description": "Google Calendar client, specialized in recording activities",
   "icons": [
     {
