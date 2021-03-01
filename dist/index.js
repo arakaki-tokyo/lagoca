@@ -779,11 +779,47 @@ class NotificationCheck extends HTMLInputElement {
 }
 
 class SettingsModalOpen extends HTMLElement {
+  imgElm;
+  constructor(){
+    super();
+    Store.onChange(storeKeys.userProfile, this);
+    Store.onChange(storeKeys.isSignedIn, this);
+  }
   connectedCallback() {
+    this.imgElm = document.createElement("img");
+    this.imgElm.setAttribute("style", `
+      width: 20px;
+      position: absolute;
+      top: 20px;
+      left: 15px;
+      border-radius: 50%;
+    `);
+
     this.addEventListener("click", () => {
       Store.set(storeKeys.isModalOpen, true);
+    });
 
-    })
+    this.innerHTML = `<div style="position: absolute">${this.innerHTML}</div>`;
+  }
+  update({ key, value }) {
+    switch(key){
+      case storeKeys.userProfile:
+        this.logedIn(value.imgSrc);
+        break;
+      case storeKeys.isSignedIn:
+        if(!value){
+          this.logedOut();
+        }
+        break;
+      default:
+    }
+  }
+  logedIn(src){
+    this.imgElm.src = src;
+    this.appendChild(this.imgElm);
+  }
+  logedOut(){
+    this.removeChild(this.imgElm);
   }
 }
 
