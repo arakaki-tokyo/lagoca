@@ -678,17 +678,17 @@ class AddCalendar extends HTMLButtonElement {
  */
 class EventColor extends HTMLElement {
   colors = [
-    { id: "1", value: "#a4bdfc" },
-    { id: "2", value: "#7ae7bf" },
-    { id: "3", value: "#dbadff" },
-    { id: "4", value: "#ff887c" },
-    { id: "5", value: "#fbd75b" },
-    { id: "6", value: "#ffb878" },
-    { id: "7", value: "#46d6db" },
-    { id: "8", value: "#e1e1e1" },
-    { id: "9", value: "#5484ed" },
-    { id: "10", value: "#51b749" },
     { id: "11", value: "#dc2127" },
+    { id: "4", value: "#ff887c" },
+    { id: "6", value: "#ffb878" },
+    { id: "5", value: "#fbd75b" },
+    { id: "10", value: "#51b749" },
+    { id: "2", value: "#7ae7bf" },
+    { id: "7", value: "#46d6db" },
+    { id: "1", value: "#a4bdfc" },
+    { id: "9", value: "#5484ed" },
+    { id: "3", value: "#dbadff" },
+    { id: "8", value: "#e1e1e1" },
   ];
   form;
 
@@ -775,11 +775,47 @@ class NotificationCheck extends HTMLInputElement {
 }
 
 class SettingsModalOpen extends HTMLElement {
+  imgElm;
+  constructor(){
+    super();
+    Store.onChange(storeKeys.userProfile, this);
+    Store.onChange(storeKeys.isSignedIn, this);
+  }
   connectedCallback() {
+    this.imgElm = document.createElement("img");
+    this.imgElm.setAttribute("style", `
+      width: 20px;
+      position: absolute;
+      top: 20px;
+      left: 15px;
+      border-radius: 50%;
+    `);
+
     this.addEventListener("click", () => {
       Store.set(storeKeys.isModalOpen, true);
+    });
 
-    })
+    this.innerHTML = `<div style="position: absolute">${this.innerHTML}</div>`;
+  }
+  update({ key, value }) {
+    switch(key){
+      case storeKeys.userProfile:
+        this.logedIn(value.imgSrc);
+        break;
+      case storeKeys.isSignedIn:
+        if(!value){
+          this.logedOut();
+        }
+        break;
+      default:
+    }
+  }
+  logedIn(src){
+    this.imgElm.src = src;
+    this.appendChild(this.imgElm);
+  }
+  logedOut(){
+    this.removeChild(this.imgElm);
   }
 }
 
@@ -1208,7 +1244,7 @@ class DoneAct extends HTMLElement {
    * @memberof DoneAct
    */
   _render(act) {
-    this.querySelector("[data-summary]").innerHTML = act.link ? `<a href="${act.link}" target="_blank">${act.summary}</a>` : act.summary;
+    this.querySelector("[data-summary]").innerHTML = act.link ? `<a href="${act.link}" target="_blank" rel="noreferrer">${act.summary}</a>` : act.summary;
     this.querySelector("[data-time]").innerHTML = `${new MyDate(act.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(act.end).strftime("%H:%M")}`;
     this.querySelector("[data-description]").innerHTML = act.description;
 
