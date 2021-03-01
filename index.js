@@ -102,8 +102,6 @@ class Cron {
         if (jobTable.length == 0) {
           clearInterval(intervalId);
         }
-      } else {
-        console.log("not found");
       }
     }
   }
@@ -661,7 +659,6 @@ class AddCalendar extends HTMLButtonElement {
         }
       })
       .catch(err => {
-        console.log(err);
         Store.set(storeKeys.notice, new DATA.Notice({ message: "新しいカレンダーを作成できませんでした。" }));
       })
       .then(() => {
@@ -687,17 +684,17 @@ class AddCalendar extends HTMLButtonElement {
  */
 class EventColor extends HTMLElement {
   colors = [
-    { id: "1", value: "#a4bdfc" },
-    { id: "2", value: "#7ae7bf" },
-    { id: "3", value: "#dbadff" },
-    { id: "4", value: "#ff887c" },
-    { id: "5", value: "#fbd75b" },
-    { id: "6", value: "#ffb878" },
-    { id: "7", value: "#46d6db" },
-    { id: "8", value: "#e1e1e1" },
-    { id: "9", value: "#5484ed" },
-    { id: "10", value: "#51b749" },
     { id: "11", value: "#dc2127" },
+    { id: "4", value: "#ff887c" },
+    { id: "6", value: "#ffb878" },
+    { id: "5", value: "#fbd75b" },
+    { id: "10", value: "#51b749" },
+    { id: "2", value: "#7ae7bf" },
+    { id: "7", value: "#46d6db" },
+    { id: "1", value: "#a4bdfc" },
+    { id: "9", value: "#5484ed" },
+    { id: "3", value: "#dbadff" },
+    { id: "8", value: "#e1e1e1" },
   ];
   form;
 
@@ -769,7 +766,6 @@ class NotificationCheck extends HTMLInputElement {
           try {
             Notification.requestPermission().then(callback);
           } catch (e) {
-            console.log(e)
             Notification.requestPermission(callback);
           }
         }
@@ -785,11 +781,47 @@ class NotificationCheck extends HTMLInputElement {
 }
 
 class SettingsModalOpen extends HTMLElement {
+  imgElm;
+  constructor(){
+    super();
+    Store.onChange(storeKeys.userProfile, this);
+    Store.onChange(storeKeys.isSignedIn, this);
+  }
   connectedCallback() {
+    this.imgElm = document.createElement("img");
+    this.imgElm.setAttribute("style", `
+      width: 20px;
+      position: absolute;
+      top: 20px;
+      left: 15px;
+      border-radius: 50%;
+    `);
+
     this.addEventListener("click", () => {
       Store.set(storeKeys.isModalOpen, true);
+    });
 
-    })
+    this.innerHTML = `<div style="position: absolute">${this.innerHTML}</div>`;
+  }
+  update({ key, value }) {
+    switch(key){
+      case storeKeys.userProfile:
+        this.logedIn(value.imgSrc);
+        break;
+      case storeKeys.isSignedIn:
+        if(!value){
+          this.logedOut();
+        }
+        break;
+      default:
+    }
+  }
+  logedIn(src){
+    this.imgElm.src = src;
+    this.appendChild(this.imgElm);
+  }
+  logedOut(){
+    this.removeChild(this.imgElm);
   }
 }
 
@@ -911,8 +943,6 @@ class ActStart extends HTMLButtonElement {
             end: now.toISOString(),
           })
             .then(res => {
-              console.log(res);
-
               newAct.isSynced = true;
               newAct.id = res.result.id;
               newAct.link = res.result.htmlLink;
@@ -1002,13 +1032,11 @@ class ActEnd extends HTMLButtonElement {
           end: end.toISOString()
         })
           .then(res => {
-            console.log(res);
             this.doingAct.isSynced = true;
             this.doingAct.id = res.result.id;
             this.doingAct.link = res.result.htmlLink;
           })
           .catch(err => {
-            console.log(err);
             this.doingAct.isSynced = false;
             handleRejectedCommon(err);
           })
@@ -1222,7 +1250,7 @@ class DoneAct extends HTMLElement {
    * @memberof DoneAct
    */
   _render(act) {
-    this.querySelector("[data-summary]").innerHTML = act.link ? `<a href="${act.link}" target="_blank">${act.summary}</a>` : act.summary;
+    this.querySelector("[data-summary]").innerHTML = act.link ? `<a href="${act.link}" target="_blank" rel="noreferrer">${act.summary}</a>` : act.summary;
     this.querySelector("[data-time]").innerHTML = `${new MyDate(act.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(act.end).strftime("%H:%M")}`;
     this.querySelector("[data-description]").innerHTML = act.description;
 
@@ -1360,7 +1388,6 @@ class UpcomingActList extends HTMLElement {
       timeMin: today.toISOString()
     })
       .then(res => {
-        console.log(res);
         const upcomings = [];
         res.result.items.forEach(item => {
           upcomings.push(new Act({
@@ -1547,10 +1574,8 @@ for (const key in customTags) {
   const customTag = customTags[key];
   if (customTag.custom) {
     customElements.define(customTag.name, customTag.class, { extends: customTag.custom });
-    console.log(`usage: <${customTag.custom} is="${customTag.name}">`)
   } else {
     customElements.define(customTag.name, customTag.class);
-    console.log(`usage: <${customTag.name}>...</${customTag.name}>`)
   }
 }
 
@@ -1577,7 +1602,6 @@ function handleClientLoad() {
       })
       .catch(error => {
         Store.set(storeKeys.notice, new DATA.Notice("Some fatal errors occurred.<br>Try reloading this page.", 1_000_000));
-        console.log(error);
       });
   });
 }
@@ -1594,8 +1618,7 @@ function appInit() {
 
   storageManager.init();
   idbManager.get()
-    .then(val => Store.set(storeKeys.idb, val))
-    .catch(ev => console.log(ev));
+    .then(val => Store.set(storeKeys.idb, val));
 }
 
 function updateCalendarlist() {
@@ -1683,7 +1706,6 @@ const workerManager = new class {
           this.serviceWorker = registration.active;
           this.proc();
         })
-        .catch(error => console.log('Service worker registration failed, error:', error));
     }
   }
   update({ key, value }) {
@@ -1719,7 +1741,6 @@ const idbManager = new class {
     openRequest.onupgradeneeded = function (ev) {
       // initialize, or update idb
       const db = ev.target.result;
-      console.log(db);
       // only one record in 'sw' store, key: 0, value: {start, end}.
       db.createObjectStore('sw');
     }
@@ -1912,7 +1933,6 @@ const pereodic = new class {
       timeMin: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
     })
       .then(res => {
-        console.log(res);
         const resDoingAct = res.result.items.find(item => item.start.dateTime == item.end.dateTime);
         if (resDoingAct) {
           if (this.doneActList) {
@@ -1948,7 +1968,6 @@ const pereodic = new class {
       end: new Date(act.end).toISOString()
     })
       .then(res => {
-        console.log(res);
         act.isSynced = true;
         storageManager.save(storeKeys.doneActList);
       })
@@ -1969,7 +1988,6 @@ const pereodic = new class {
       end: new Date(act.end).toISOString(),
     })
       .then(res => {
-        console.log(res)
         act.isSynced = true;
         act.id = res.result.id;
         act.link = res.result.htmlLink;
@@ -1980,32 +1998,3 @@ const pereodic = new class {
 
 
 }
-
-/* *************************************** */
-/*  for debug                              */
-/* *************************************** */
-const dbg = {
-  style: {
-    bound: ["font-weight: bold;background: yellow;color:black;", ""],
-    bold: ["font-weight: bold;", ""],
-    red: ["font-weight: bold;color: red;", ""],
-    blue: ["font-weight: bold;color: hsl(210,100%,70%)", ""],
-  },
-
-  update({ key, value }) {
-    const length = 50;
-    const keyword = `  ${key}  `;
-    const padLeft = Math.floor(length / 2 + keyword.length / 2);
-    console.log(`%c${keyword.padStart(padLeft, '■').padEnd(length, '■')}%c`, ...this.style.bound);
-    if (value) console.log(value.toString());
-    console.dir(value);
-  }
-};
-Store.onChange(storeKeys.settings, dbg);
-Store.onChange(storeKeys.isActDoing, dbg);
-Store.onChange(storeKeys.doingAct, dbg);
-Store.onChange(storeKeys.doneActList, dbg);
-Store.onChange(storeKeys.addedCalendar, dbg);
-Store.onChange(storeKeys.calendars, dbg);
-Store.onChange(storeKeys.sw, dbg);
-Store.onChange(storeKeys.idb, dbg);
