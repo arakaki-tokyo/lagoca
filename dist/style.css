@@ -26,7 +26,7 @@ label > * {
 }
 
 act-description {
-  height: 150px;
+  height: 130px;
   display: block;
   margin-top: -35px;
   margin-bottom: 35px;
@@ -76,7 +76,7 @@ input[name="which_to_show"]:checked + #upcoming {
 }
 done-act,
 upcoming-act {
-  width: 150px;
+  width: 200px;
   display: inline-block;
   margin: 2px;
 }
@@ -115,4 +115,7 @@ time {
   #upcoming {
     height: var(--upcoming-task-area-height);
   }
+  act-description {
+    height: 200px;
+  }  
 }

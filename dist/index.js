@@ -681,17 +681,17 @@ class AddCalendar extends HTMLButtonElement {
  */
 class EventColor extends HTMLElement {
   colors = [
-    { id: "1", value: "#a4bdfc" },
-    { id: "2", value: "#7ae7bf" },
-    { id: "3", value: "#dbadff" },
-    { id: "4", value: "#ff887c" },
-    { id: "5", value: "#fbd75b" },
-    { id: "6", value: "#ffb878" },
-    { id: "7", value: "#46d6db" },
-    { id: "8", value: "#e1e1e1" },
-    { id: "9", value: "#5484ed" },
-    { id: "10", value: "#51b749" },
     { id: "11", value: "#dc2127" },
+    { id: "4", value: "#ff887c" },
+    { id: "6", value: "#ffb878" },
+    { id: "5", value: "#fbd75b" },
+    { id: "10", value: "#51b749" },
+    { id: "2", value: "#7ae7bf" },
+    { id: "7", value: "#46d6db" },
+    { id: "1", value: "#a4bdfc" },
+    { id: "9", value: "#5484ed" },
+    { id: "3", value: "#dbadff" },
+    { id: "8", value: "#e1e1e1" },
   ];
   form;
 
