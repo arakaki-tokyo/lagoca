@@ -819,7 +819,9 @@ class SettingsModalOpen extends HTMLElement {
     this.appendChild(this.imgElm);
   }
   logedOut(){
-    this.removeChild(this.imgElm);
+    if(this.contains(this.imgElm)){
+      this.removeChild(this.imgElm);
+    }
   }
 }
 
@@ -1606,7 +1608,7 @@ function handleClientLoad() {
         gapi.auth2.getAuthInstance().isSignedIn.listen(isSignedIn => Store.set(storeKeys.isSignedIn, isSignedIn));
       })
       .catch(error => {
-        Store.set(storeKeys.notice, new DATA.Notice("Some fatal errors occurred.<br>Try reloading this page.", 1_000_000));
+        Store.set(storeKeys.notice, new DATA.Notice({message: "Some fatal errors occurred.<br>Try reloading this page.", duration: 1_000_000}));
         console.log(error);
       });
   });
