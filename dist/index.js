@@ -294,12 +294,14 @@ function Settings({
   upcomingCalendarId = "",
   logCalendarId = "",
   colorId = "",
+  diaryEnabled = "",
   notificationEnabled = ""
 }) {
   this.upcomingEnabled = upcomingEnabled;
   this.upcomingCalendarId = upcomingCalendarId;
   this.logCalendarId = logCalendarId;
   this.colorId = colorId;
+  this.diaryEnabled = diaryEnabled;
   this.notificationEnabled = notificationEnabled;
 }
 /**
@@ -343,6 +345,74 @@ function Notice({ message = "", duration = 5000 }) {
 const $ = (id) => document.getElementById(id);
 
 /**
+ * - `data-tab`属性: 表示するページに対応するタブ
+ * - `data-page`属性: 表示するページ
+ *
+ * @class TabSwipeable
+ * @extends {HTMLElement}
+ */
+class TabSwipeable extends HTMLDivElement {
+  tabs;
+  view;
+  scrollHandler;
+  constructor() {
+    super();
+    this.tabs = {};
+    this.scrollHandler = this._scrollHandler.bind(this);
+    Store.onChange(storeKeys.settings, this);
+  }
+  connectedCallback() {
+    this.querySelectorAll("[data-tab]").forEach(tab => {
+      tab.addEventListener("click", this.tabClickHandler.bind(this));
+      this.tabs[tab.dataset.tab] = {tab} ;
+    });
+    this.querySelectorAll("[data-page]").forEach(page => {
+      this.tabs[page.dataset.page]["page"] = page ;
+    });
+    this.view = this.querySelector("#view");
+    this.tabContainer = this.querySelector("#tab");
+    this.view.addEventListener("scroll", this.scrollHandler);
+    
+  }
+  update({key, value}){
+    if(value.diaryEnabled){
+      this.view.classList.add("swipeable");
+      this.tabContainer.classList.remove("is-hidden");
+    }else{
+      this.view.classList.remove("swipeable");
+      this.tabContainer.classList.add("is-hidden");
+      this.view.scrollLeft = 0;
+    }
+  }
+  tabClickHandler(e) {
+    e.stopPropagation();
+    Object.values(this.tabs).forEach(tab => {
+      if (tab.tab.contains(e.target)) {
+        tab.tab.classList.add("is-active");
+        this.view.scrollLeft += tab.page.getBoundingClientRect().x;
+      } else {
+        tab.tab.classList.remove("is-active");
+      }
+
+    })
+  }
+  _scrollHandler(e){
+    e.target.removeEventListener("scroll", this.scrollHandler);
+    const activeTab = Object.values(this.tabs).find(tab => tab.page.getBoundingClientRect().x === 0);
+    if(activeTab){
+      Object.values(this.tabs).forEach(tab => {
+        if(tab === activeTab){
+          tab.tab.classList.add("is-active");
+        }else{
+          tab.tab.classList.remove("is-active");
+        }
+      })
+    }
+    e.target.addEventListener("scroll", this.scrollHandler);
+  }
+}
+
+/**
  * 設定のモーダル
  * - `data-action="close"`属性：クリックされるとモーダルを閉じる
  * - `data-action="signin"`属性：クリックされるとサインイン処理
@@ -354,6 +424,7 @@ const $ = (id) => document.getElementById(id);
  * - `data-role="upcoming_calendar_id"`: 予定を取得するカレンダーセレクトボックス
  * - `data-role="log_calendar_id"`: ログを記録するカレンダーセレクトボックス
  * - `data-role="color_id"`: イベントカラーラジオボタン
+ * - `data-role="diary_enabled"`: diaryを有効化チェックボックス
  * 
  * 
  * @class SettingsModal
@@ -366,6 +437,7 @@ class SettingsModal extends HTMLElement {
   upcomingCalendarId;
   logCalendarId;
   colorId;
+  diaryEnabled;
   notificationEnabled;
 
   constructor() {
@@ -389,6 +461,9 @@ class SettingsModal extends HTMLElement {
           break;
         case "color_id":
           this.colorId = elm;
+          break;
+        case "diary_enabled":
+          this.diaryEnabled = elm;
           break;
         case "notification_enabled":
           this.notificationEnabled = elm;
@@ -462,6 +537,7 @@ class SettingsModal extends HTMLElement {
       upcomingCalendarId: this.upcomingCalendarId.value,
       logCalendarId: this.logCalendarId.value,
       colorId: this.colorId.value,
+      diaryEnabled: this.diaryEnabled.checked,
       notificationEnabled: this.notificationEnabled.checked
     });
     Store.set(storeKeys.settings, newSettings);
@@ -473,6 +549,7 @@ class SettingsModal extends HTMLElement {
     this.upcomingCalendarId.disabled = !settings.upcomingEnabled;
     this.logCalendarId.value = settings.logCalendarId;
     this.colorId.value = settings.colorId;
+    this.diaryEnabled.checked = settings.diaryEnabled;
     this.notificationEnabled.checked = settings.notificationEnabled;
   }
 }
@@ -780,18 +857,23 @@ class NotificationCheck extends HTMLInputElement {
 
 class SettingsModalOpen extends HTMLElement {
   imgElm;
-  constructor(){
+  constructor() {
     super();
     Store.onChange(storeKeys.userProfile, this);
     Store.onChange(storeKeys.isSignedIn, this);
+    [
+      ["position", "relative"],
+      ["cursor", "pointer"]
+
+    ].forEach(([key, value]) => this.style[key] = value);
   }
   connectedCallback() {
     this.imgElm = document.createElement("img");
     this.imgElm.setAttribute("style", `
       width: 20px;
       position: absolute;
-      top: 20px;
-      left: 15px;
+      top: 15px;
+      left: 13px;
       border-radius: 50%;
     `);
 
@@ -799,26 +881,26 @@ class SettingsModalOpen extends HTMLElement {
       Store.set(storeKeys.isModalOpen, true);
     });
 
-    this.innerHTML = `<div style="position: absolute">${this.innerHTML}</div>`;
+    this.innerHTML = `<div>${this.innerHTML}</div>`;
   }
   update({ key, value }) {
-    switch(key){
+    switch (key) {
       case storeKeys.userProfile:
         this.logedIn(value.imgSrc);
         break;
       case storeKeys.isSignedIn:
-        if(!value){
+        if (!value) {
           this.logedOut();
         }
         break;
       default:
     }
   }
-  logedIn(src){
+  logedIn(src) {
     this.imgElm.src = src;
     this.appendChild(this.imgElm);
   }
-  logedOut(){
+  logedOut() {
     this.removeChild(this.imgElm);
   }
 }
@@ -1010,9 +1092,9 @@ class ActEnd extends HTMLButtonElement {
    * @param {Date} end
    * @memberof ActEnd
    */
-  endProc(end){
+  endProc(end) {
     Queue.add(() => {
-      if(!this.doingAct) return;
+      if (!this.doingAct) return;
 
       const start = new Date(this.doingAct.start);
 
@@ -1078,7 +1160,7 @@ class ActEnd extends HTMLButtonElement {
         this.dispatchEvent(new Event("click"));
         break;
       case storeKeys.idb:
-        if(value && this.doingAct.start == value.start){
+        if (value && this.doingAct.start == value.start) {
           this.endProc(new Date(value.end));
         }
         break;
@@ -1479,6 +1561,11 @@ class ToolTip extends HTMLElement {
 
 
 const customTags = {
+  TabSwipeable: {
+    custom: "div",
+    name: "tab-swipeable",
+    class: TabSwipeable
+  },
   SettingsModal: {
     name: "settings-modal",
     class: SettingsModal
@@ -1619,6 +1706,7 @@ function appInit() {
     upcomingCalendarId: "primary",
     upcomingEnabled: false,
     colorId: "1",
+    diaryEnabled: false,
     notificationEnabled: false
   }));
 
