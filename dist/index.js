@@ -109,7 +109,6 @@ const idbManager = new class {
     openRequest.onupgradeneeded = function (ev) {
       // initialize, or update idb
       const db = ev.target.result;
-      console.log(db);
       // only one record in 'sw' store, key: 0, value: {start, end}.
       db.createObjectStore('sw');
       const diary = db.createObjectStore('diary', { keyPath: 'date' });
@@ -1875,7 +1874,6 @@ class DiaryContainer extends HTMLDivElement {
   }
   checkUnsynced() {
     idbManager.getUnsyncedDiaries().then(list => {
-      console.dir(list);
       list.forEach(diary => {
         const syncMethod = diary.id ? API.updateAllDayEvent : API.insertAllDayEvent;
         const APIParam = {
@@ -2391,7 +2389,6 @@ const pereodic = new class {
       timeMin: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
     })
       .then(res => {
-        console.log(res);
         const resDoingAct = res.result.items.find(item =>
           item.start.dateTime && item.end.dateTime && item.start.dateTime == item.end.dateTime);
         if (resDoingAct) {
