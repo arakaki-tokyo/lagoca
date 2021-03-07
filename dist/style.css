@@ -61,14 +61,14 @@ label > * {
   font-style: normal !important;
 }
 
-act-description {
+.quill_holder {
   height: 130px;
   display: block;
   margin-top: -35px;
   margin-bottom: 35px;
 }
 
-act-description .ql-toolbar {
+.quill_holder .ql-toolbar {
   margin: 0 3px;
   padding: 5px !important;
   border: none !important;
@@ -79,11 +79,11 @@ act-description .ql-toolbar {
   z-index: 1;
 }
 
-act-description .ql-container {
+.quill_holder .ql-container {
   position: relative;
   border: none !important;
 }
-act-description .ql-editor {
+.quill_holder .ql-editor {
   padding-top: 45px;
   box-shadow: none;
 }

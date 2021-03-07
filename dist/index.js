@@ -1,5 +1,8 @@
 
 "use strict";
+const TRUE = 1;
+const FALSE = 0;
+const ONEDAY_MS = 1000 * 60 * 60 * 24;
 /**
  * データストア
  * @class Store
@@ -102,6 +105,98 @@ class Cron {
     }
   }
 }
+const idbManager = new class {
+  constructor() {
+    const openRequest = indexedDB.open("logoca", 1);
+    openRequest.onupgradeneeded = function (ev) {
+      // initialize, or update idb
+      const db = ev.target.result;
+      console.log(db);
+      // only one record in 'sw' store, key: 0, value: {start, end}.
+      db.createObjectStore('sw');
+      const diary = db.createObjectStore('diary', { keyPath: 'date' });
+      diary.createIndex("isSynced", "isSynced", { unique: false });
+    }
+
+    this.db = new Promise(resolve => {
+      openRequest.onsuccess = ev => resolve(ev.target.result);
+    })
+  }
+  getSW() {
+    return this._get("sw", 0, "readonly");
+  }
+  getDiary(date) {
+    return this._get("diary", date, "readonly");
+  }
+  /**
+   * @return {Promise<Array<Diary>>} 
+   */
+  getUnsyncedDiaries() {
+    return this.db.then(db => {
+      const req = db.transaction("diary", "readonly")
+        .objectStore("diary").index("isSynced").getAll(FALSE);
+      return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => resolve(ev.target.result);
+        req.onerrors = (ev) => reject(ev);
+      })
+    });
+  }
+  _get(store, key, type) {
+    return this.db.then(db => {
+      const req = db.transaction(store, type).objectStore(store).get(key);
+      return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => resolve(ev.target.result);
+        req.onerrors = (ev) => reject(ev);
+      })
+    });
+  }
+  setDiary(diary) {
+    return this.db
+      .then(db => db.transaction("diary", "readwrite").objectStore("diary").put(diary));
+  }
+  updateDiary(key, f) {
+    return this.db.then(db => {
+      const req = db.transaction("diary", "readwrite").objectStore("diary").openCursor(key);
+      return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => {
+          const cursor = ev.target.result;
+          if (cursor) {
+            f(cursor.value);
+            cursor.update(cursor.value).onsuccess = () => resolve(undefined);
+          } else {
+            const diary = new Diary({ date: key });
+            f(diary);
+            return this.setDiary(diary);
+          }
+        };
+        req.onerrors = (ev) => reject(ev);
+      })
+    });
+  }
+  syncDiary(diary) {
+    return this.db.then(db => {
+      const req = db.transaction("diary", "readwrite").objectStore("diary").openCursor(diary.date);
+      return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => {
+          const cursor = ev.target.result;
+          if (cursor) {
+            if (cursor.value.timestamp >= diary.timestamp) {
+              // do nothing
+            } else {
+              cursor.update(diary).onsuccess = () => resolve(undefined);
+            }
+          } else {
+            return this.setDiary(diary);
+          }
+        };
+        req.onerrors = (ev) => reject(ev);
+      })
+    });
+  }
+  deleteDiary(date) {
+    return this.db.then(db => db.transaction("diary", "readwrite").objectStore("diary").delete(date));
+  }
+}
 
 
 class MyDate extends Date {
@@ -159,13 +254,15 @@ const API = new class {
    * @param {string} object.timeMin - ISO format
    * @return {PromiseLike} 
    */
-  listEvent({ calendarId, timeMax, timeMin }) {
+  listEvent({ calendarId, timeMax, timeMin, q }) {
     return gapi.client.calendar.events.list({
       calendarId,
       timeMax,
       timeMin,
       orderBy: "startTime",
-      singleEvents: true
+      singleEvents: true,
+      maxResults: 365,
+      q
     });
   }
   /**
@@ -183,8 +280,8 @@ const API = new class {
     return gapi.client.calendar.events.insert({
       calendarId: this.logCalendarId,
       resource: {
-        summary: summary,
-        description: description,
+        summary,
+        description,
         start: {
           dateTime: start,
           timeZone: "Asia/Tokyo",
@@ -194,6 +291,30 @@ const API = new class {
           timeZone: "Asia/Tokyo",
         },
         colorId: this.colorId,
+      },
+    });
+  }
+  /**
+   * 新しい終日イベントを挿入する
+   *
+   * @param {object} object
+   * @param {string} [object.summary]
+   * @param {string} [object.description]
+   * @param {Date} object.start
+   * @return {PromiseLike} 
+   */
+  insertAllDayEvent({ summary = "", description = "", start, location = "" }) {
+    const startFormatted = new MyDate(start).strftime("%Y-%m-%d");
+    const endFormatted = new MyDate(start.getTime() + ONEDAY_MS).strftime("%Y-%m-%d");
+    return gapi.client.calendar.events.insert({
+      calendarId: this.logCalendarId,
+      resource: {
+        summary: summary,
+        description: description,
+        start: { date: startFormatted },
+        end: { date: endFormatted },
+        colorId: this.colorId,
+        location
       },
     });
   }
@@ -226,6 +347,39 @@ const API = new class {
         colorId: this.colorId,
       },
     });
+  }
+  /**
+   * IDで指定した終日イベントを更新する
+   *
+   * @param {object} object
+   * @param {string} object.eventId
+   * @param {string} object.summary
+   * @param {string} object.description
+   * @param {Date} object.start
+   * @return {PromiseLike} 
+   */
+  updateAllDayEvent({ eventId, summary = "", description = "", start, location }) {
+    const startFormatted = new MyDate(start).strftime("%Y-%m-%d");
+    const endFormatted = new MyDate(start.getTime() + ONEDAY_MS).strftime("%Y-%m-%d");
+    return gapi.client.calendar.events.update({
+      calendarId: this.logCalendarId,
+      eventId,
+      resource: {
+        summary,
+        description,
+        start: { date: startFormatted },
+        end: { date: endFormatted },
+        colorId: this.colorId,
+        location
+      },
+    });
+  }
+  deleteEvent({ calendarId, eventId }) {
+    // なぜかthen()を呼ばないと実行されない
+    return gapi.client.calendar.events.delete({
+      calendarId,
+      eventId
+    }).then();
   }
   /**
    * カレンダーのリストを取得する
@@ -338,7 +492,33 @@ function Notice({ message = "", duration = 5000 }) {
   this.message = message;
   this.duration = duration;
 }
-
+/**
+ * Diary データクラス
+ * @class Diary
+ */
+class Diary {
+  calendarId;
+  /** @type {Date} */
+  date;
+  /** @type {String} */
+  id;
+  /** @type {String} */
+  value;
+  /** @type {Number} */
+  timestamp;
+  /** @type {Number} */
+  isSynced;
+  link;
+  constructor({ calendarId, date, id = "", value, timestamp = Date.now(), isSynced = FALSE, link = "" }) {
+    this.calendarId = calendarId;
+    this.date = date;
+    this.id = id;
+    this.value = value;
+    this.timestamp = timestamp;
+    this.isSynced = isSynced;
+    this.link = link;
+  }
+}
 /* *************************************** */
 /*  custom elements definitions            */
 /* *************************************** */
@@ -364,21 +544,21 @@ class TabSwipeable extends HTMLDivElement {
   connectedCallback() {
     this.querySelectorAll("[data-tab]").forEach(tab => {
       tab.addEventListener("click", this.tabClickHandler.bind(this));
-      this.tabs[tab.dataset.tab] = {tab} ;
+      this.tabs[tab.dataset.tab] = { tab };
     });
     this.querySelectorAll("[data-page]").forEach(page => {
-      this.tabs[page.dataset.page]["page"] = page ;
+      this.tabs[page.dataset.page]["page"] = page;
     });
     this.view = this.querySelector("#view");
     this.tabContainer = this.querySelector("#tab");
     this.view.addEventListener("scroll", this.scrollHandler);
-    
+
   }
-  update({key, value}){
-    if(value.diaryEnabled){
+  update({ key, value }) {
+    if (value.diaryEnabled) {
       this.view.classList.add("swipeable");
       this.tabContainer.classList.remove("is-hidden");
-    }else{
+    } else {
       this.view.classList.remove("swipeable");
       this.tabContainer.classList.add("is-hidden");
       this.view.scrollLeft = 0;
@@ -396,14 +576,14 @@ class TabSwipeable extends HTMLDivElement {
 
     })
   }
-  _scrollHandler(e){
+  _scrollHandler(e) {
     e.target.removeEventListener("scroll", this.scrollHandler);
     const activeTab = Object.values(this.tabs).find(tab => tab.page.getBoundingClientRect().x === 0);
-    if(activeTab){
+    if (activeTab) {
       Object.values(this.tabs).forEach(tab => {
-        if(tab === activeTab){
+        if (tab === activeTab) {
           tab.tab.classList.add("is-active");
-        }else{
+        } else {
           tab.tab.classList.remove("is-active");
         }
       })
@@ -901,7 +1081,7 @@ class SettingsModalOpen extends HTMLElement {
     this.appendChild(this.imgElm);
   }
   logedOut() {
-    if(this.contains(this.imgElm)){
+    if (this.contains(this.imgElm)) {
       this.removeChild(this.imgElm);
     }
   }
@@ -1559,7 +1739,210 @@ class ToolTip extends HTMLElement {
     this.addEventListener("click", this.show);
   }
 }
+/**
+ * - `data-role="tommorow"`: 翌日ボタン
+ * - `data-role="yesterday"`: 昨日ボタン
+ * - `data-role="date"`: input[type="date"]
+ *
+ * @class DiaryNav
+ * @extends {HTMLElement}
+ */
+class DiaryNav extends HTMLElement {
+  _currentDate; // 地方時の午前0時で日付を保持する
+  _today; // today判定用変数。今日の地方時の午前0時。
+  _tomorrow;
+  _yesterday;
+  _date;
+  _onchange;
+  constructor() {
+    super();
+    this._currentDateUpdate(new Date());
+    this._today = new Date(this._currentDate);
+  }
+  connectedCallback() {
+    this.querySelectorAll("[data-role]").forEach(elm => {
+      this[`_${elm.dataset.role}`] = elm;
+    })
 
+    this._date.max = this._date.value = this._currentDate.strftime("%Y-%m-%d");
+    this._tomorrow.disabled = true;
+    this._yesterday.addEventListener("click", e => {
+      this._date.stepDown();
+      this._date.dispatchEvent(new Event("change"));
+    });
+    this._tomorrow.addEventListener("click", e => {
+      this._date.stepUp();
+      this._date.dispatchEvent(new Event("change"));
+    });
+    this._date.addEventListener("change", this._dateOnChange.bind(this));
+  }
+  _dateOnChange(e) {
+    e.stopPropagation();
+    this._currentDateUpdate(new Date(e.target.value));
+    if (this._currentDate.getTime() === this._today.getTime()) {
+      this._tomorrow.disabled = true;
+    } else {
+      this._tomorrow.disabled = false;
+    }
+  }
+  _currentDateUpdate(date) {
+    this._currentDate = new MyDate(date);
+    this._currentDate.setHours(0, 0, 0, 0);
+    this.dispatchEvent(new Event("change"));
+  }
+  get value() { return new Date(this._currentDate); }
+}
+class DiaryDesc extends HTMLElement {
+  constructor() {
+    super();
+  }
+  connectedCallback() {
+    const editorContainer = document.createElement("div");
+    this.appendChild(editorContainer);
+    this.quill = new Quill(editorContainer, {
+      modules: {
+        toolbar: [
+          ['bold', 'italic', 'underline'],
+          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+          ['link'],
+          ['clean']
+        ]
+      },
+      placeholder: this.getAttribute("placeholder"),
+      theme: 'snow'
+    });
+
+    this.editor = this.querySelector(".ql-editor");
+    this.editor.classList.add("textarea", "has-fixed-size");
+    this.quill.on("text-change", () => {
+      this.dispatchEvent(new Event("change"));
+    })
+  }
+  set value(val) { this.editor.innerHTML = val; }
+  get value() { return this.editor.innerHTML; }
+}
+
+class DiaryContainer extends HTMLDivElement {
+  DIARY_LABEL = "LoGoCa_DIARY";
+  currentDiary;
+  descChange;
+  calendarId;
+  isSignedIn;
+  connectedCallback() {
+    Store.onChange(storeKeys.settings, this);
+    Store.onChange(storeKeys.isSignedIn, this);
+    this.date = this.querySelector("diary-nav");
+    this.desc = this.querySelector("diary-desc");
+  }
+  update({ key, value }) {
+    switch (key) {
+
+      case storeKeys.settings:
+        this.calendarId = value.logCalendarId;
+        break;
+      case storeKeys.isSignedIn:
+        if (this.isSignedIn || !value) return;
+        this.isSignedIn = value;
+        this.fetch().then(() => {
+          this.date.onchange = e => this.dateChange(e.target.value);
+          this.dateChange(this.date.value);
+          this.descChange = this._descChange.bind(this);
+
+          Cron.add(60_000, this.checkUnsynced.bind(this));
+        })
+    }
+  }
+  dateChange(date) {
+    this.desc.removeEventListener("change", this.descChange);
+    idbManager.getDiary(date).then(diary => {
+      if (diary) {
+        this.currentDiary = diary;
+        this.desc.value = diary.value;
+      } else {
+        this.currentDiary = null;
+        this.desc.value = "";
+      }
+      // quill内でchangeイベントが非同期で発火するため
+      setTimeout(() => this.desc.addEventListener("change", this.descChange), 0);
+    });
+  }
+  _descChange(e) {
+    if (e.target.value === "<p><br></p>") {
+      idbManager.getDiary(this.date.value).then(diary => {
+        if (diary.id) {
+          API.deleteEvent({ calendarId: diary.calendarId, eventId: diary.id });
+        }
+        idbManager.deleteDiary(this.date.value);
+      })
+    } else {
+      idbManager.updateDiary(this.date.value, diary => {
+        diary.value = e.target.value;
+        diary.timestamp = Date.now();
+        diary.isSynced = FALSE;
+      })
+    }
+  }
+  checkUnsynced() {
+    idbManager.getUnsyncedDiaries().then(list => {
+      console.dir(list);
+      list.forEach(diary => {
+        const syncMethod = diary.id ? API.updateAllDayEvent : API.insertAllDayEvent;
+        const APIParam = {
+          eventId: diary.id,
+          summary: new MyDate(diary.date).strftime("%m/%d"),
+          description: diary.value,
+          start: diary.date,
+          location: this.DIARY_LABEL
+        };
+        const callback = res => {
+          idbManager.getDiary(diary.date).then(currentDiary => {
+            if (currentDiary.timestamp == diary.timestamp) {
+              diary.isSynced = TRUE;
+              diary.timestamp = new Date(res.result.updated).getTime();
+            }
+            diary.calendarId = this.calendarId;
+            diary.id = res.result.id;
+            diary.link = res.result.htmlLink;
+            idbManager.setDiary(diary);
+          })
+        };
+        syncMethod.bind(API)(APIParam).then(callback)
+          .catch(error => {
+            if (error.status == 404) {
+              API.insertAllDayEvent(APIParam).then(callback)
+            }
+          })
+      })
+    })
+  }
+  fetch() {
+    const timeMax = new Date(Date.now() + ONEDAY_MS).toISOString();
+    const timeMin = new Date(Date.now() - ONEDAY_MS * 365).toISOString();
+    return API.listEvent({
+      calendarId: this.calendarId,
+      timeMax,
+      timeMin,
+      q: this.DIARY_LABEL
+    })
+      .then(res => {
+        res.result.items.forEach(item => {
+          if (!item.start.date) return;
+
+          const date = new Date(item.start.date);
+          date.setHours(0, 0, 0, 0);
+          idbManager.syncDiary(new Diary({
+            calendarId: this.calendarId,
+            date,
+            id: item.id,
+            value: item.description,
+            timestamp: new Date(item.updated).getTime(),
+            isSynced: TRUE,
+            link: item.htmlLink
+          }))
+        })
+      })
+  }
+}
 
 
 const customTags = {
@@ -1661,6 +2044,19 @@ const customTags = {
     name: "tool-tip",
     class: ToolTip
   },
+  DiaryDesc: {
+    name: "diary-desc",
+    class: DiaryDesc
+  },
+  DiaryNav: {
+    name: "diary-nav",
+    class: DiaryNav
+  },
+  DiaryContainer: {
+    custom: "div",
+    name: "diary-container",
+    class: DiaryContainer
+  },
 }
 for (const key in customTags) {
   const customTag = customTags[key];
@@ -1695,7 +2091,7 @@ function handleClientLoad() {
         gapi.auth2.getAuthInstance().isSignedIn.listen(isSignedIn => Store.set(storeKeys.isSignedIn, isSignedIn));
       })
       .catch(error => {
-        Store.set(storeKeys.notice, new DATA.Notice({message: "Some fatal errors occurred.<br>Try reloading this page.", duration: 1_000_000}));
+        Store.set(storeKeys.notice, new DATA.Notice({ message: "Some fatal errors occurred.<br>Try reloading this page.", duration: 1_000_000 }));
         console.log(error);
       });
   });
@@ -1713,7 +2109,7 @@ function appInit() {
   }));
 
   storageManager.init();
-  idbManager.get()
+  idbManager.getSW()
     .then(val => Store.set(storeKeys.idb, val))
     .catch(ev => console.log(ev));
 }
@@ -1833,31 +2229,6 @@ const workerManager = new class {
   }
 }
 
-const idbManager = new class {
-  constructor() {
-    const openRequest = indexedDB.open("logoca", 1);
-    openRequest.onupgradeneeded = function (ev) {
-      // initialize, or update idb
-      const db = ev.target.result;
-      console.log(db);
-      // only one record in 'sw' store, key: 0, value: {start, end}.
-      db.createObjectStore('sw');
-    }
-
-    this.db = new Promise(resolve => {
-      openRequest.onsuccess = ev => resolve(ev.target.result);
-    })
-  }
-  get() {
-    return this.db.then(db => {
-      const req = db.transaction("sw", "readonly").objectStore("sw").get(0);
-      return new Promise((resolve, reject) => {
-        req.onsuccess = (ev) => resolve(ev.target.result);
-        req.onerrors = (ev) => reject(ev);
-      })
-    });
-  }
-}
 const titleManager = new class {
   doingAct;
   summaryFromView;
@@ -2033,7 +2404,8 @@ const pereodic = new class {
     })
       .then(res => {
         console.log(res);
-        const resDoingAct = res.result.items.find(item => item.start.dateTime == item.end.dateTime);
+        const resDoingAct = res.result.items.find(item =>
+          item.start.dateTime && item.end.dateTime && item.start.dateTime == item.end.dateTime);
         if (resDoingAct) {
           if (this.doneActList) {
             const unsyncedAct = this.doneActList.find(act => act.id === resDoingAct.id);
