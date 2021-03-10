@@ -25,7 +25,7 @@ class Store {
 
   /**
    * @static
-   * @param {storeKeys} key
+   * @param {String} key
    * @param {*} value
    * @memberof Store
    */
@@ -58,7 +58,8 @@ const storeKeys = {
   notice: "notice",
   doneActList: "doneActList",
   sw: "sw",
-  idb: "idb"
+  idb: "idb",
+  routine: "routine"
 };
 
 /* *************************************** */
@@ -341,7 +342,7 @@ const API = new class {
    * @param {string} object.end
    * @return {PromiseLike} 
    */
-  insertEvent({ summary = "", description = "", start, end }) {
+  insertEvent({ summary = "", description = "", start, end, colorId }) {
 
     return gapi.client.calendar.events.insert({
       calendarId: this.logCalendarId,
@@ -356,7 +357,7 @@ const API = new class {
           dateTime: end,
           timeZone: "Asia/Tokyo",
         },
-        colorId: this.colorId,
+        colorId: colorId? colorId:this.colorId,
       },
     });
   }
@@ -395,7 +396,7 @@ const API = new class {
    * @param {string} object.end
    * @return {PromiseLike} 
    */
-  updateEvent({ eventId, summary = "", description = "", start, end }) {
+  updateEvent({ eventId, summary = "", description = "", start, end, colorId }) {
     return gapi.client.calendar.events.update({
       calendarId: this.logCalendarId,
       eventId,
@@ -410,7 +411,7 @@ const API = new class {
           dateTime: end,
           timeZone: "Asia/Tokyo",
         },
-        colorId: this.colorId,
+        colorId: colorId? colorId:this.colorId,
       },
     });
   }
@@ -538,7 +539,8 @@ function Act({
   id = "",
   summary = "",
   description = "",
-  link = ""
+  link = "",
+  colorId = null
 }) {
   this.isSynced = isSynced;
   this.start = start;
@@ -548,6 +550,7 @@ function Act({
   this.summary = summary;
   this.description = description;
   this.link = link;
+  this.colorId = colorId;
 }
 /**
  * 通知データクラス
@@ -599,6 +602,13 @@ class Routine {
     this.description = description;
     this.color = color;
   }
+  getAct(){
+    return new Act({
+      summary: this.summary,
+      description: this.description,
+      colorId: this.color? this.color.id: null
+    })
+  }
 }
 /* *************************************** */
 /*  custom elements definitions            */
@@ -621,6 +631,7 @@ class TabSwipeable extends HTMLDivElement {
     this.tabs = {};
     this.scrollHandler = this._scrollHandler.bind(this);
     Store.onChange(storeKeys.settings, this);
+    Store.onChange(storeKeys.routine, this);
   }
   connectedCallback() {
     this.querySelectorAll("[data-tab]").forEach(tab => {
@@ -641,13 +652,19 @@ class TabSwipeable extends HTMLDivElement {
     this.view.style.scrollBehavior = "smooth";
   }
   update({ key, value }) {
-    if (value.diaryEnabled) {
-      this.view.classList.add("swipeable");
-      this.tabContainer.classList.remove("is-hidden");
-    } else {
-      this.view.classList.remove("swipeable");
-      this.tabContainer.classList.add("is-hidden");
-      this.view.scrollLeft = 0;
+    switch(key){
+      case storeKeys.settings:
+        if (value.diaryEnabled) {
+          this.view.classList.add("swipeable");
+          this.tabContainer.classList.remove("is-hidden");
+        } else {
+          this.view.classList.remove("swipeable");
+          this.tabContainer.classList.add("is-hidden");
+          this.view.scrollLeft = 0;
+        }    
+        break;
+      case storeKeys.routine:
+        this.tabs.page1.tab.dispatchEvent(new Event("click"));
     }
   }
   tabClickHandler(e) {
@@ -1294,34 +1311,37 @@ class ActStart extends HTMLButtonElement {
     Store.onChange(storeKeys.descriptionFromView, this);
     Store.onChange(storeKeys.isActDoing, this);
     Store.onChange(storeKeys.isSignedIn, this);
+    Store.onChange(storeKeys.routine, this);
   }
   connectedCallback() {
     this.addEventListener("click", () => {
-      Store.set(storeKeys.isActDoing, true);
-      const now = new Date();
       const newAct = new DATA.Act({ summary: this.summary, description: this.description });
-      Store.set(storeKeys.doingAct, newAct);
-      if (this.isSignedIn) {
-        Queue.add(() => {
-          return API.insertEvent({
-            summary: this.summary,
-            description: this.description,
-            start: now.toISOString(),
-            end: now.toISOString(),
-          })
-            .then(res => {
-              console.log(res);
-
-              newAct.isSynced = true;
-              newAct.id = res.result.id;
-              newAct.link = res.result.htmlLink;
-              storageManager.save(storeKeys.doingAct);
-            })
-            .catch(handleRejectedCommon);
-        });
-      }
+      this._startProc(newAct);
     })
   }
+  _startProc(act){
+    Store.set(storeKeys.isActDoing, true);
+    const now = new Date();
+    Store.set(storeKeys.doingAct, act);
+    if (this.isSignedIn) {
+      Queue.add(() => {
+        return API.insertEvent({
+          summary: act.summary,
+          description: act.description,
+          start: now.toISOString(),
+          end: now.toISOString(),
+          colorId: act.colorId
+        })
+          .then(res => {
+            act.isSynced = true;
+            act.id = res.result.id;
+            act.link = res.result.htmlLink;
+            storageManager.save(storeKeys.doingAct);
+          })
+          .catch(handleRejectedCommon);
+      });
+    }
+}
   update({ key, value }) {
     switch (key) {
       case storeKeys.summaryFromView:
@@ -1338,6 +1358,9 @@ class ActStart extends HTMLButtonElement {
           this.classList.add("is-hidden");
         else
           this.classList.remove("is-hidden");
+        break;
+      case storeKeys.routine:
+        this._startProc(value.getAct());
         break;
       default:
     }
@@ -1398,7 +1421,8 @@ class ActEnd extends HTMLButtonElement {
           summary: this.doingAct.summary,
           description: this.doingAct.description,
           start: start.toISOString(),
-          end: end.toISOString()
+          end: end.toISOString(),
+          colorId: this.doingAct.colorId
         })
           .then(res => {
             console.log(res);
@@ -1652,7 +1676,8 @@ class DoneAct extends HTMLElement {
       summary: this.act.summary,
       description: this.act.description,
       start: new Date(this.act.start).toISOString(),
-      end: new Date(this.act.end).toISOString()
+      end: new Date(this.act.end).toISOString(),
+      colorId: this.act.colorId
     })
       .then(res => {
         this.act.isSynced = true;
@@ -2053,6 +2078,9 @@ class DiaryContainer extends HTMLDivElement {
 /**
  * Routineページのコンテナ
  * - `data-action="open"`属性：クリックされるとモーダルを開く
+ * - `data-action="start"`属性：クリックされるとルーティンを開始
+ * - `data-action="edit"`属性：クリックされるとルーティンを編集
+ * - `data-action="delete"`属性：クリックされるとルーティンを削除
  * - `data-role="modal"`: モーダル
  * 
  * @class RoutineContainer
@@ -2065,6 +2093,8 @@ class RoutineContainer extends HTMLDivElement {
   editingRoutine;
 
   connectedCallback() {
+    Store.onChange(storeKeys.doingAct, this);
+
     this.container = this.querySelector('[data-role="container"]');
     this.modal = this.querySelector('routine-modal');
     this.addEventListener("click", e => {
@@ -2091,6 +2121,9 @@ class RoutineContainer extends HTMLDivElement {
         this.container.appendChild(this.renderContents(routine));
       });
     })
+  }
+  update({key, value}){
+    this[key] = value;
   }
   renderContents(routine) {
     const li = document.createElement("li");
@@ -2143,6 +2176,14 @@ class RoutineContainer extends HTMLDivElement {
       .then(() => {
         this.updateRoutineOrder();
       });
+  }
+  start(target){
+    if(this.doingAct) return;
+
+    const startRoutine = this.routineList.find(routine => routine.id === Number(target.dataset.key));
+    Store.set(storeKeys.routine, new Routine(startRoutine));
+    Store.set(storeKeys.summaryToView, startRoutine.summary);
+    Store.set(storeKeys.descriptionToView, startRoutine.description);
   }
 
 }
@@ -2695,7 +2736,8 @@ const pereodic = new class {
             id: resDoingAct.id,
             summary: resDoingAct.summary,
             description: resDoingAct.description,
-            link: resDoingAct.htmlLink
+            link: resDoingAct.htmlLink,
+            colorId: resDoingAct.colorId
           });
           return this.startNewAct(newAct);
         }
@@ -2712,7 +2754,8 @@ const pereodic = new class {
       summary: act.summary,
       description: act.description,
       start: new Date(act.start).toISOString(),
-      end: new Date(act.end).toISOString()
+      end: new Date(act.end).toISOString(),
+      colorId: act.colorId
     })
       .then(res => {
         console.log(res);
@@ -2734,6 +2777,7 @@ const pereodic = new class {
       description: act.description,
       start: new Date(act.start).toISOString(),
       end: new Date(act.end).toISOString(),
+      colorId: act.colorId
     })
       .then(res => {
         console.log(res)
