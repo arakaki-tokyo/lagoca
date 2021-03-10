@@ -3,9 +3,11 @@
 PRJROOT=$(pwd)
 HTML=${PRJROOT}/dist/index.html
 JS=${PRJROOT}/dist/index.js
+QUILL=${PRJROOT}/node_modules/quill/dist/quill.min.js
+SORTABLEJS=${PRJROOT}/node_modules/sortablejs/Sortable.min.js
 
 mv ${JS} src/
-cat node_modules/quill/dist/quill.min.js src/index.js | sed '/sourceMap/d' > ${JS}
+cat ${QUILL} ${SORTABLEJS} src/index.js | sed '/sourceMap/d' > ${JS}
 
 purgecss --css node_modules/bulma/css/bulma.min.css \
     --content ${JS} ${HTML} \
