@@ -26,6 +26,8 @@ body {
 #tab li{
   flex-basis: 50%;
 }
+#tab a{ padding: 0.5em;}
+#tab .icon{ margin-left: 0;}
 #view{
   position:absolute;
   top:0;
@@ -34,7 +36,6 @@ body {
   scroll-snap-type: x mandatory;
   display: flex;
   overflow-x: hidden;
-  scroll-behavior: smooth;
 }
 #view.swipeable{
   margin-top:42px;
@@ -54,6 +55,34 @@ body {
 label > * {
   vertical-align: middle;
 }
+.sortable-ghost{
+  background: hsl(0,0%,90%);
+  box-shadow: 0 0 5px inset hsl(180deg 100% 30%);
+}
+.routine_item{
+  border-bottom: solid 1px lightgrey;
+  padding: .5rem;
+}
+.routine_details{
+  flex: 0 1 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.routine_details.routine_summary{
+  flex: 1 1 140px;
+  justify-content: flex-start;
+  overflow-x: hidden;
+}
+.sortable-handle{
+  cursor: grab !important;
+}
+.sortable-handle > svg{
+  color: dimgray;
+}
+.sortable-ghost .sortable-handle > svg{
+  color: hsl(180, 100%, 50%);
+} 
 
 .ql-editor.ql-blank::before {
   /* placeholderのスタイルをbulmaと合わせる */
@@ -155,3 +184,5 @@ time {
     height: 200px;
   }  
 }
+
+

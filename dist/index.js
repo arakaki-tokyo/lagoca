@@ -105,77 +105,146 @@ class Cron {
     }
   }
 }
-const idbManager = new class {
-  constructor() {
-    const openRequest = indexedDB.open("logoca", 1);
+const OSs = {
+  // key: 0, value: {start, end}
+  SW: { name: "SW" },
+  Routine: { name: "Routine", option: { keyPath: 'id' }, index: [{ key: "order" }] },
+  Diary: { name: "Diary", option: { keyPath: 'date' }, index: [{ key: "isSynced" }] },
+};
+/** 
+ * 
+ * @method getAllRoutine
+ * */
+const idb = new class {
+  VERSION = 1;
+  constructor(OSs) {
+    const openRequest = indexedDB.open("logoca", this.VERSION);
     openRequest.onupgradeneeded = function (ev) {
       // initialize, or update idb
       const db = ev.target.result;
-      console.log(db);
-      // only one record in 'sw' store, key: 0, value: {start, end}.
-      db.createObjectStore('sw');
-      const diary = db.createObjectStore('diary', { keyPath: 'date' });
-      diary.createIndex("isSynced", "isSynced", { unique: false });
+      Object.values(OSs).forEach(OS => {
+        const objectStore = OS.option ?
+          db.createObjectStore(OS.name, OS.option) :
+          db.createObjectStore(OS.name);
+        if (OS.index) OS.index.forEach(idx => objectStore.createIndex(idx.key, idx.key));
+      })
     }
 
     this.db = new Promise(resolve => {
       openRequest.onsuccess = ev => resolve(ev.target.result);
     })
+
+    Object.values(OSs).forEach(OS => {
+      this[`get${OS.name}`] = key => this._get(OS.name, key);
+      this[`getAll${OS.name}`] = key => this._getAll(OS.name, key);
+      this[`getIndexAll${OS.name}`] = (index, key) => this._getIndexAll(OS.name, index, key);
+      this[`getAllKV${OS.name}`] = key => this._getAllKV(OS.name, key);
+      this[`set${OS.name}`] = obj => this._set(OS.name, obj);
+      this[`update${OS.name}`] = (key, f) => this._update(OS.name, key, f);
+      this[`delete${OS.name}`] = key => this._delete(OS.name, key);
+    })
   }
-  getSW() {
-    return this._get("sw", 0, "readonly");
-  }
-  getDiary(date) {
-    return this._get("diary", date, "readonly");
-  }
-  /**
-   * @return {Promise<Array<Diary>>} 
-   */
-  getUnsyncedDiaries() {
+  _get(store, key) {
     return this.db.then(db => {
-      const req = db.transaction("diary", "readonly")
-        .objectStore("diary").index("isSynced").getAll(FALSE);
+      const req = db.transaction(store, "readonly").objectStore(store).get(key);
       return new Promise((resolve, reject) => {
         req.onsuccess = (ev) => resolve(ev.target.result);
         req.onerrors = (ev) => reject(ev);
       })
     });
   }
-  _get(store, key, type) {
+  _getAll(store, key) {
     return this.db.then(db => {
-      const req = db.transaction(store, type).objectStore(store).get(key);
+      const objectStore = db.transaction(store, "readonly").objectStore(store);
+      const req = key ? objectStore.getAll(key) : objectStore.getAll();
       return new Promise((resolve, reject) => {
         req.onsuccess = (ev) => resolve(ev.target.result);
         req.onerrors = (ev) => reject(ev);
       })
     });
   }
-  setDiary(diary) {
-    return this.db
-      .then(db => db.transaction("diary", "readwrite").objectStore("diary").put(diary));
-  }
-  updateDiary(key, f) {
+  _getIndexAll(store, index, key) {
     return this.db.then(db => {
-      const req = db.transaction("diary", "readwrite").objectStore("diary").openCursor(key);
+      const idx = db.transaction(store, "readonly").objectStore(store).index(index);
+      const req = key ? idx.getAll(key) : idx.getAll();
       return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => resolve(ev.target.result);
+        req.onerrors = (ev) => reject(ev);
+      })
+    });
+  }
+
+  _getAllKV(store, key) {
+    return this.db.then(db => {
+      const objectStore = db.transaction(store, "readonly").objectStore(store);
+      const req = key ? objectStore.openCursor(key) : objectStore.openCursor();
+      return new Promise((resolve, reject) => {
+        const KV = [];
         req.onsuccess = (ev) => {
-          const cursor = ev.target.result;
+          let cursor = ev.target.result;
           if (cursor) {
-            f(cursor.value);
-            cursor.update(cursor.value).onsuccess = () => resolve(undefined);
+            KV.push({ key: cursor.key, value: cursor.value });
+            cursor.continue();
           } else {
-            const diary = new Diary({ date: key });
-            f(diary);
-            return this.setDiary(diary);
+            resolve(KV);
           }
         };
         req.onerrors = (ev) => reject(ev);
       })
     });
   }
+
+  _set(store, obj) {
+    return this.db.then(db => {
+      const req = db.transaction(store, "readwrite").objectStore(store).put(obj);
+      return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => resolve(ev.target.result);
+        req.onerrors = (ev) => reject(ev);
+      })
+    });
+    }
+  _update(store, key, f) {
+    return this.db.then(db => {
+      const req = db.transaction(store, "readwrite").objectStore(store).openCursor(key);
+      return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => {
+          const cursor = ev.target.result;
+          if (cursor) {
+            cursor.update(f(cursor.value)).onsuccess = () => resolve(undefined);
+          } else {
+            this[`set${store}`](f()).then(() => resolve(undefined));
+          }
+        };
+        req.onerrors = (ev) => reject(ev);
+      })
+    });
+  }
+  _delete(store, key) {
+    return this.db.then(db => {
+      const req = db.transaction(store, "readwrite").objectStore(store).delete(key);
+      return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => resolve(ev.target.result);
+        req.onerrors = (ev) => reject(ev);
+      })
+    });
+  }
+
+  /**
+   * @return {Promise<Array<Diary>>} 
+   */
+  getUnsyncedDiaries() {
+    return this.db.then(db => {
+      const req = db.transaction(OSs.Diary.name, "readonly")
+        .objectStore(OSs.Diary.name).index(OSs.Diary.index[0].key).getAll(FALSE);
+      return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => resolve(ev.target.result);
+        req.onerrors = (ev) => reject(ev);
+      })
+    });
+  }
   syncDiary(diary) {
     return this.db.then(db => {
-      const req = db.transaction("diary", "readwrite").objectStore("diary").openCursor(diary.date);
+      const req = db.transaction(OSs.Diary.name, "readwrite").objectStore(OSs.Diary.name).openCursor(diary.date);
       return new Promise((resolve, reject) => {
         req.onsuccess = (ev) => {
           const cursor = ev.target.result;
@@ -193,10 +262,7 @@ const idbManager = new class {
       })
     });
   }
-  deleteDiary(date) {
-    return this.db.then(db => db.transaction("diary", "readwrite").objectStore("diary").delete(date));
-  }
-}
+}(OSs);
 
 
 class MyDate extends Date {
@@ -519,6 +585,21 @@ class Diary {
     this.link = link;
   }
 }
+
+class Routine {
+  id;
+  order;
+  summary;
+  description;
+  color;
+  constructor({ order = -1, summary = "", description = "", color = null }) {
+    this.order = order;
+    this.id = Date.now();
+    this.summary = summary;
+    this.description = description;
+    this.color = color;
+  }
+}
 /* *************************************** */
 /*  custom elements definitions            */
 /* *************************************** */
@@ -552,7 +633,12 @@ class TabSwipeable extends HTMLDivElement {
     this.view = this.querySelector("#view");
     this.tabContainer = this.querySelector("#tab");
     this.view.addEventListener("scroll", this.scrollHandler);
-
+    // this.view.scrollLeftへの代入が機能しないため
+    setTimeout(() => this.init(), 0);
+  }
+  init() {
+    Object.values(this.tabs).find(tab => tab.tab.classList.contains("is-active")).tab.dispatchEvent(new Event("click"));
+    this.view.style.scrollBehavior = "smooth";
   }
   update({ key, value }) {
     if (value.diaryEnabled) {
@@ -988,8 +1074,27 @@ class EventColor extends HTMLElement {
   get value() {
     return this.form.ev.value;
   }
+  get colorValue() {
+    return this.colors.find(color => color.id == this.value).value;
+  }
   set value(val) {
     this.form.ev.value = val;
+  }
+  set disabled(val) {
+    if (typeof val != "boolean") return;
+
+    if (val) {
+      this.form.ev.forEach(radio => {
+        radio.checked = false;
+        radio.disabled = true;
+      });
+      this.form.querySelectorAll("label").forEach(l => l.style.borderColor = "gray");
+    } else {
+      this.form.ev.forEach(radio => {
+        radio.disabled = false;
+      });
+      this.form.querySelectorAll("label").forEach(l => l.style.borderColor = "inherit");
+    }
   }
 }
 
@@ -1792,7 +1897,7 @@ class DiaryNav extends HTMLElement {
   }
   get value() { return new Date(this._currentDate); }
 }
-class DiaryDesc extends HTMLElement {
+class QuillCommon extends HTMLElement {
   constructor() {
     super();
   }
@@ -1832,7 +1937,7 @@ class DiaryContainer extends HTMLDivElement {
     Store.onChange(storeKeys.settings, this);
     Store.onChange(storeKeys.isSignedIn, this);
     this.date = this.querySelector("diary-nav");
-    this.desc = this.querySelector("diary-desc");
+    this.desc = this.querySelector("[data-role='description']");
   }
   update({ key, value }) {
     switch (key) {
@@ -1854,7 +1959,7 @@ class DiaryContainer extends HTMLDivElement {
   }
   dateChange(date) {
     this.desc.removeEventListener("change", this.descChange);
-    idbManager.getDiary(date).then(diary => {
+    idb.getDiary(date).then(diary => {
       if (diary) {
         this.currentDiary = diary;
         this.desc.value = diary.value;
@@ -1868,22 +1973,24 @@ class DiaryContainer extends HTMLDivElement {
   }
   _descChange(e) {
     if (e.target.value === "<p><br></p>") {
-      idbManager.getDiary(this.date.value).then(diary => {
+      idb.getDiary(this.date.value).then(diary => {
         if (diary.id) {
           API.deleteEvent({ calendarId: diary.calendarId, eventId: diary.id });
         }
-        idbManager.deleteDiary(this.date.value);
+        idb.deleteDiary(this.date.value);
       })
     } else {
-      idbManager.updateDiary(this.date.value, diary => {
-        diary.value = e.target.value;
-        diary.timestamp = Date.now();
-        diary.isSynced = FALSE;
+      idb.updateDiary(this.date.value, diary => {
+        const updateDiary = diary? diary: new Diary({calendarId: this.calendarId, date: this.date.value});
+        updateDiary.value = e.target.value;
+        updateDiary.timestamp = Date.now();
+        updateDiary.isSynced = FALSE;
+        return updateDiary;
       })
     }
   }
   checkUnsynced() {
-    idbManager.getUnsyncedDiaries().then(list => {
+    idb.getUnsyncedDiaries().then(list => {
       console.dir(list);
       list.forEach(diary => {
         const syncMethod = diary.id ? API.updateAllDayEvent : API.insertAllDayEvent;
@@ -1895,7 +2002,7 @@ class DiaryContainer extends HTMLDivElement {
           location: this.DIARY_LABEL
         };
         const callback = res => {
-          idbManager.getDiary(diary.date).then(currentDiary => {
+          idb.getDiary(diary.date).then(currentDiary => {
             if (currentDiary.timestamp == diary.timestamp) {
               diary.isSynced = TRUE;
               diary.timestamp = new Date(res.result.updated).getTime();
@@ -1903,7 +2010,7 @@ class DiaryContainer extends HTMLDivElement {
             diary.calendarId = this.calendarId;
             diary.id = res.result.id;
             diary.link = res.result.htmlLink;
-            idbManager.setDiary(diary);
+            idb.setDiary(diary);
           })
         };
         syncMethod.bind(API)(APIParam).then(callback)
@@ -1930,7 +2037,7 @@ class DiaryContainer extends HTMLDivElement {
 
           const date = new Date(item.start.date);
           date.setHours(0, 0, 0, 0);
-          idbManager.syncDiary(new Diary({
+          idb.syncDiary(new Diary({
             calendarId: this.calendarId,
             date,
             id: item.id,
@@ -1941,6 +2048,164 @@ class DiaryContainer extends HTMLDivElement {
           }))
         })
       })
+  }
+}
+/**
+ * Routineページのコンテナ
+ * - `data-action="open"`属性：クリックされるとモーダルを開く
+ * - `data-role="modal"`: モーダル
+ * 
+ * @class RoutineContainer
+ * @extends {HTMLElement}
+ */
+class RoutineContainer extends HTMLDivElement {
+  container;
+  modal;
+  routineList;
+  editingRoutine;
+
+  connectedCallback() {
+    this.container = this.querySelector('[data-role="container"]');
+    this.modal = this.querySelector('routine-modal');
+    this.addEventListener("click", e => {
+      const target = e.target.closest("[data-action]");
+      if (target && this[target.dataset.action]) {
+        this[target.dataset.action](target);
+      }
+    })
+    this._init();
+    this.modal.addEventListener("update", this.routineUpdateHandler.bind(this));
+  }
+  _init() {
+    new Sortable(this.container, {
+      animation: 150,
+      handle: ".sortable-handle",
+      selectedClass: "sortable-ghost",
+      ghostClass: "sortable-ghost",
+      onUpdate: evt => {
+        this.updateRoutineOrder();
+      },
+    });
+    this.updateRoutineList().then(() => {
+      this.routineList.forEach(routine => {
+        this.container.appendChild(this.renderContents(routine));
+      });
+    })
+  }
+  renderContents(routine) {
+    const li = document.createElement("li");
+    li.classList.add("is-flex", "routine_item");
+    li.setAttribute("data-key", routine.id);
+    li.innerHTML = `
+      <div class="routine_details"><span class="button sortable-handle"><svg class="icon"><use xlink:href="#icon-arrows-v"></use></svg></span></div>
+      <div class="routine_details"><svg data-key="${routine.id}" data-action="start" class="icon has-text-primary is-clickable"><use xlink:href="#icon-play-outline"></use></svg></div>
+      <div class="routine_details has-text-weight-bold is-size-7 routine_summary"><span ${routine.color?'style="background: linear-gradient(transparent 60% , '+routine.color.value+', transparent 110%);"':""}>${routine.summary}</span></div>
+      <div class="routine_details"><svg data-key="${routine.id}" data-action="edit" class="icon has-text-danger-dark is-clickable"><use xlink:href="#icon-pencil"></use></svg></div>
+      <div class="routine_details"><button data-key="${routine.id}" data-action="delete" class="delete"></button></div>
+    `;
+    return li;
+  }
+  routineUpdateHandler() {
+    if(this.routineList.length === this.editingRoutine.order){
+      this.container.appendChild(this.renderContents(this.editingRoutine));
+    }else{
+      this.container.children[this.editingRoutine.order].innerHTML = this.renderContents(this.editingRoutine).innerHTML;
+    }
+    this.updateRoutineList();
+  }
+  updateRoutineList(){
+    return idb.getIndexAllRoutine("order").then(list => this.routineList = list);
+  }
+  updateRoutineOrder(){
+    let queue = Promise.resolve();
+    [...this.container.children].forEach((li, idx) => {
+      queue = queue.then(() => {
+        return idb.updateRoutine(Number(li.dataset.key), routine => {
+          routine.order = idx;
+          return routine;
+        })
+      });
+    })
+    queue.then(() => this.updateRoutineList());
+  }
+  open(target) {
+    this.editingRoutine = new Routine({ order: this.routineList.length });
+    this.modal.open(this.editingRoutine);
+  }
+  edit(target) {
+    this.editingRoutine = this.routineList.find(routine => routine.id === Number(target.dataset.key));
+    this.modal.open(this.editingRoutine);
+  }
+  delete(target) {
+    target.closest("li").remove();
+
+    idb.deleteRoutine(Number(target.dataset.key))
+      .then(() => {
+        this.updateRoutineOrder();
+      });
+  }
+
+}
+/**
+ * Routineページのモーダル
+ * - `data-action="close"`属性：クリックされるとモーダルを閉じる
+ * - `data-action="apply"`属性：クリックされると設定を保存
+ * - `data-role="title"`属性：モーダルのヘッダー
+ * - `data-role="summary"`属性：ルーティンのサマリー
+ * - `data-role="description"`属性：ルーティンの詳細
+ * - `data-role="color"`属性：ルーティンのイベントカラー
+ * - `data-role="samecolor"`属性：Actのイベントカラーと同じチェックボックス
+ * 
+ * @class RoutineModal
+ * @extends {HTMLElement}
+ */
+class RoutineModal extends HTMLElement {
+  editingRoutine;
+  connectedCallback() {
+    this.querySelectorAll("[data-role]").forEach(elm => {
+      this[elm.dataset.role] = elm;
+    });
+    this.samecolor.addEventListener("change", this._samecolorOnChange.bind(this));
+    this.querySelectorAll("[data-action]").forEach(elm => {
+      elm.addEventListener("click", this[`_${elm.dataset.action}`].bind(this))
+    })
+  }
+  open(routine) {
+    this.editingRoutine = routine;
+    this.classList.add("is-active");
+    this.summary.value = routine.summary;
+    this.description.value = routine.description;
+    if (routine.color) {
+      this.samecolor.checked = false;
+      this.color.value = routine.color.id;
+      this.color.disabled = false;
+    } else {
+      this.samecolor.checked = true;
+      this.color.disabled = true;
+    }
+  }
+  _samecolorOnChange(e) {
+    this.color.disabled = e.target.checked;
+  }
+  _close(e) {
+    e.stopPropagation();
+    this.classList.remove("is-active");
+  }
+  _apply(e) {
+    e.stopPropagation();
+    this.editingRoutine.summary = this.summary.value;
+    this.editingRoutine.description = this.description.value;
+    if (!this.samecolor.checked && this.color.value) {
+      this.editingRoutine.color = { id: this.color.value, value: this.color.colorValue };
+    }else{
+      this.editingRoutine.color = null;
+    }
+
+    idb.updateRoutine(this.editingRoutine.id, routine => {
+      return this.editingRoutine;
+    }).then(() => this.dispatchEvent(new Event("update")));
+    
+    this.classList.remove("is-active");
   }
 }
 
@@ -2044,9 +2309,9 @@ const customTags = {
     name: "tool-tip",
     class: ToolTip
   },
-  DiaryDesc: {
-    name: "diary-desc",
-    class: DiaryDesc
+  QuillCommon: {
+    name: "quill-common",
+    class: QuillCommon
   },
   DiaryNav: {
     name: "diary-nav",
@@ -2057,6 +2322,16 @@ const customTags = {
     name: "diary-container",
     class: DiaryContainer
   },
+  RoutineContainer: {
+    custom: "div",
+    name: "routine-container",
+    class: RoutineContainer
+  },
+  RoutineModal: {
+    name: "routine-modal",
+    class: RoutineModal
+  },
+
 }
 for (const key in customTags) {
   const customTag = customTags[key];
@@ -2109,7 +2384,7 @@ function appInit() {
   }));
 
   storageManager.init();
-  idbManager.getSW()
+  idb.getSW(0)
     .then(val => Store.set(storeKeys.idb, val))
     .catch(ev => console.log(ev));
 }
