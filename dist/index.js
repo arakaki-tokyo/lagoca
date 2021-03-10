@@ -1661,7 +1661,8 @@ class UpcomingActList extends HTMLElement {
             start: new Date(item.start.dateTime).getTime(),
             end: new Date(item.end.dateTime).getTime(),
             summary: item.summary,
-            description: item.description
+            description: item.description,
+            link: item.htmlLink
           }))
         });
         return upcomings;
