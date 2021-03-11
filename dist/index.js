@@ -653,12 +653,11 @@ class TabSwipeable extends HTMLDivElement {
     switch(key){
       case storeKeys.settings:
         if (value.diaryEnabled) {
-          this.view.classList.add("swipeable");
-          this.tabContainer.classList.remove("is-hidden");
-        } else {
-          this.view.classList.remove("swipeable");
-          this.tabContainer.classList.add("is-hidden");
-          this.view.scrollLeft = 0;
+          Object.values(this.tabs.page2)
+            .forEach(elm => elm.classList.remove("is-hidden"));
+          } else {
+          Object.values(this.tabs.page2)
+            .forEach(elm => elm.classList.add("is-hidden"));
         }    
         break;
       case storeKeys.routine:

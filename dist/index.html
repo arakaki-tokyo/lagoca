@@ -107,7 +107,7 @@
       </div>
     </nav>
     <div is="tab-swipeable" id="main" class="has-background-white-ter">
-      <div id="tab" class="tabs is-boxed is-hidden">
+      <div id="tab" class="tabs is-boxed">
         <ul class="has-background-white">
           <li data-tab="page0"><a>
               <svg class="icon"><use xlink:href="#icon-tool"></use></svg>Routine
@@ -115,13 +115,14 @@
           <li data-tab="page1" class="is-active"><a>
               <svg class="icon"><use xlink:href="#icon-accessibility"></use></svg>Activities
           </a></li>
-          <li data-tab="page2"><a>
+          <li data-tab="page2" class="is-hidden"><a>
               <svg class="icon"><use xlink:href="#icon-quill"></use></svg>Diary
           </a></li>
         </ul>
       </div>
       <div id="view">
         <div data-page="page0" class="page p-2">
+          <h2 class="subtitle mb-1">Routine</h2>
           <div is="routine-container" class="px-0" style="height:100%;">
             <button data-action="open" class="button"><span>新規作成</span><span class="icon"><svg class="icon"><use xlink:href="#icon-add-solid"></use></svg></span></button>
             <div class="box p-0" style="height:100%;margin-top: -40px;padding-top: 40px !important;">
@@ -152,61 +153,66 @@
           </div>
         </div>
         <div data-page="page1" class="page p-2">
-          <div class="container">
-            <div id="doing" class="is-clearfix block">
-              <input type="text" is="act-summary" class="input" placeholder="title">
-              <act-description class="quill_holder" placeholder="description"></act-description>
-              <div class="is-pulled-left">
-                <time-elapsed class="is-size-1 has-text-weight-bold mx-1"></time-elapsed>
-              </div>
-              <div class="is-pulled-right">
-                <button is="act-end" class="button is-danger is-large has-text-weight-bold m-1 is-hidden"><svg class="icon" fill="#DDD"><use xlink:href="#icon-stop"></use></svg></button>
-                <button is="act-start" class="button is-primary is-large has-text-weight-bold m-1"><svg class="icon" fill="#DDD"><use xlink:href="#icon-play"></use></svg></button>
-              </div>
+          <div id="doing" class="is-clearfix block">
+            <input type="text" is="act-summary" class="input" placeholder="title">
+            <act-description class="quill_holder" placeholder="description"></act-description>
+            <div class="is-pulled-left">
+              <time-elapsed class="is-size-1 has-text-weight-bold mx-1"></time-elapsed>
             </div>
-            <upcoming-act-list id="upcoming_container" class="message mb-1 is-hidden">
-              <h2 class="message-header is-radiusless"><label class="is-overlay has-text-centered" for="upcoming_radio">今日の予定</label></h2>
-              <input type="radio" id="upcoming_radio" name="which_to_show">
-              <div data-container id="upcoming">
-                <template>
-                  <div class="card is-shadowless">
-                    <header class="card-header is-size-7" style="overflow-x: scroll;">
-                      <p data-summary class="card-header-title p-1"></p>
-                    </header>
-                    <div class="card-content p-0">
-                      <time data-time class="is-size-7"></time>
+            <div class="is-pulled-right">
+              <button is="act-end" class="button is-danger is-large has-text-weight-bold m-1 is-hidden"><svg class="icon" fill="#DDD"><use xlink:href="#icon-stop"></use></svg></button>
+              <button is="act-start" class="button is-primary is-large has-text-weight-bold m-1"><svg class="icon" fill="#DDD"><use xlink:href="#icon-play"></use></svg></button>
+            </div>
+          </div>
+          <div class="act_lists_container">
+            <input type="radio" id="upcoming_radio" name="which_to_show">
+            <upcoming-act-list class="act_list card is-hidden">
+              <header class="card-header">
+                <label class="card-header-title p-1 pl-3" for="upcoming_radio">今日の予定</label>
+              </header>
+              <div class="card-content p-0">
+                <div data-container id="upcoming">
+                  <template>
+                    <div class="message is-info">
+                      <p data-summary class="message-header  is-size-7" style="overflow-x: scroll;"></p>
+                      <div class="message-body p-0">
+                        <time data-time class="is-size-7"></time>
+                      </div>
+                      <div class="card-footer">
+                        <button data-start class="card-footer-item button is-small is-link is-inverted" style="background: transparent;">start</button>
+                      </div>
                     </div>
-                    <div class="card-footer">
-                      <button data-start class="card-footer-item button is-small is-link is-inverted">start</button>
-                    </div>
-                  </div>
-                </template>
+                  </template>
+                </div>
               </div>
             </upcoming-act-list>
-            <done-act-list class="message m-0">
-              <h2 class="message-header is-radiusless"><label class="is-overlay has-text-centered" for="done_radio">最近の活動</label></h2>
-              <input type="radio" id="done_radio" name="which_to_show" checked>
-              <div data-container id="done">
+            <input type="radio" id="done_radio" name="which_to_show" checked>
+            <done-act-list class="act_list card">
+              <header class="card-header">
+                <label class="card-header-title p-1 pl-3" for="done_radio">最近の活動</label>
+              </header>
+              <div class="card-content p-0">
+                <div data-container id="done">
                 <template>
-                  <div data-failed-add="has-text-grey-light" class="card is-shadowless">
-                    <header class="card-header is-size-7" style="overflow-x: scroll;">
-                      <p data-summary data-failed-add="has-text-grey-light" class="card-header-title p-1"></p>
-                    </header>
-                    <div class="card-content p-0">
-                      <time data-time class="is-size-7"></time>
-                      <div data-description data-failed-add="has-text-grey-light" class="content p-2 is-size-7"></div>
+                  <div data-failed-remove="is-link" data-failed-add="is-dark" class="message is-link">
+                    <p data-summary data-failed-add="has-text-grey-light" class="message-header is-size-7" style="overflow-x: scroll;"></p>
+                    <div class="message-body p-0">
+                      <div><time data-time data-failed-add="has-text-grey-light" class="is-size-7"></time></div>
+                      <div data-description data-failed-add="has-text-grey-light" class="content is-size-7 m-1"></div>
                     </div>
                     <div class="card-footer">
-                      <button data-sync data-failed-remove="is-hidden" class="card-footer-item button is-small is-danger is-inverted">Sync</button>
-                      <button data-restart class="card-footer-item button is-small is-link is-inverted">restart</button>
+                      <button data-sync data-failed-remove="is-hidden" class="card-footer-item button is-small is-danger is-inverted" style="background: transparent;">Sync</button>
+                      <button data-restart class="card-footer-item button is-small is-link is-inverted" style="background: transparent;">restart</button>
                     </div>
                   </div>
                 </template>
+              </div>
               </div>
             </done-act-list>
           </div>
         </div>
-        <div data-page="page2" class="page p-2">
+        <div data-page="page2" class="page p-2 is-hidden">
+          <h2 class="subtitle mb-1">Diary</h2>
           <div is="diary-container" class="container">
             <diary-nav class="is-flex is-justify-content-space-between">
               <button data-role="yesterday" class="button"><svg class="icon has-text-grey"><use xlink:href="#icon-left"></use></svg></button>
