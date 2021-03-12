@@ -108,6 +108,8 @@ class Cron {
 const OSs = {
   // key: 0, value: {start, end}
   SW: { name: "SW" },
+  App: {name: "App", option: {keyPath: "key"}},
+  DoneAct: {name: "DoneAct", option: {keyPath: "start"}},
   Routine: { name: "Routine", option: { keyPath: 'id' }, index: [{ key: "order" }] },
   Diary: { name: "Diary", option: { keyPath: 'date' }, index: [{ key: "isSynced" }] },
 };
@@ -143,6 +145,26 @@ const idb = new class {
       this[`update${OS.name}`] = (key, f) => this._update(OS.name, key, f);
       this[`delete${OS.name}`] = key => this._delete(OS.name, key);
     })
+  }
+  init(){
+    this.getAllApp()
+    .then(list => list.forEach(({key, value}) => {
+      Store.set(key, value);
+      this[key] = value;
+    }))
+    .then(() => {
+      Store.onChange(storeKeys.doingAct, this);
+      Store.onChange(storeKeys.settings, this);
+      Store.onChange(storeKeys.doneActList, this);
+    });
+
+  }
+  update({key, value}){
+    this.setApp({key, value});
+    this[key] = value;
+  }
+  save(key){
+    this.setApp({key, value: this[key]});
   }
   _get(store, key) {
     return this.db.then(db => {
@@ -1222,7 +1244,7 @@ class Summary extends HTMLInputElement {
   connectedCallback() {
     this.addEventListener("input", () => {
       Store.set(storeKeys.summaryFromView, this.value);
-      localStorage.setItem(storeKeys.summaryToView, this.value);
+      idb.setApp({key: storeKeys.summaryToView, value: this.value});
     });
   }
   update({ key, value }) {
@@ -1274,7 +1296,7 @@ class Description extends HTMLElement {
     this.editor.classList.add("textarea", "has-fixed-size");
     this.quill.on("text-change", () => {
       Store.set(storeKeys.descriptionFromView, this.editor.innerHTML);
-      localStorage.setItem(storeKeys.descriptionToView, this.editor.innerHTML);
+      idb.setApp({key: storeKeys.descriptionToView, value: this.editor.innerHTML});
     })
   }
   update({ key, value }) {
@@ -1335,7 +1357,7 @@ class ActStart extends HTMLButtonElement {
             act.isSynced = true;
             act.id = res.result.id;
             act.link = res.result.htmlLink;
-            storageManager.save(storeKeys.doingAct);
+            idb.save(storeKeys.doingAct);
           })
           .catch(handleRejectedCommon);
       });
@@ -1687,7 +1709,7 @@ class DoneAct extends HTMLElement {
         this.act.id = res.result.id;
         this.act.link = res.result.htmlLink;
         this._render(this.act);
-        storageManager.save(storeKeys.doneActList);
+        idb.save(storeKeys.doneActList);
       })
       .catch(handleRejectedCommon)
     );
@@ -2436,7 +2458,7 @@ function appInit() {
     notificationEnabled: false
   }));
 
-  storageManager.init();
+  idb.init();
   idb.getSW(0)
     .then(val => Store.set(storeKeys.idb, val))
     .catch(ev => console.log(ev));
@@ -2600,11 +2622,16 @@ const titleManager = new class {
         this.summaryFromView = value;
         break;
       case storeKeys.doingAct:
-        this.doingAct = value;
-        if (this.doingAct) {
+        if (value) {
+          if(this.doingAct) return;
+          this.doingAct = value;
+
           this.registeredJob = this.proc.bind(this);
           Cron.add(1_000, this.registeredJob);
         }else{
+          if(!this.doingAct) return;
+          this.doingAct = value;
+
           Cron.remove(1_000, this.registeredJob);
           this.title.text = this.titleTextOrg;
           this.favicon.href = this.faviconHrefOrg;
@@ -2624,36 +2651,6 @@ const titleManager = new class {
   }
 }
 
-const storageManager = new class {
-  init() {
-    Object.keys(localStorage).forEach(key => {
-      let valueToSet;
-      try {
-        valueToSet = JSON.parse(localStorage.getItem(key));
-      } catch (e) {
-        valueToSet = localStorage.getItem(key);
-      }
-      Store.set(key, valueToSet);
-      this[key] = valueToSet;
-    });
-
-    Store.onChange(storeKeys.doingAct, this);
-    Store.onChange(storeKeys.settings, this);
-    Store.onChange(storeKeys.doneActList, this);
-  }
-  update({ key, value }) {
-    if (!value) {
-      localStorage.removeItem(key);
-    } else {
-      localStorage.setItem(key, JSON.stringify(value));
-      this[key] = value;
-    }
-  }
-  save(key) {
-    if (this[key]) localStorage.setItem(key, JSON.stringify(this[key]));
-  }
-
-}
 const pereodic = new class {
   doingAct;
   doneActList;
@@ -2763,7 +2760,7 @@ const pereodic = new class {
       .then(res => {
         console.log(res);
         act.isSynced = true;
-        storageManager.save(storeKeys.doneActList);
+        idb.save(storeKeys.doneActList);
       })
       .catch(handleRejectedCommon);
   }
@@ -2785,7 +2782,7 @@ const pereodic = new class {
         act.isSynced = true;
         act.id = res.result.id;
         act.link = res.result.htmlLink;
-        storageManager.save(storeKeys.doingAct);
+        idb.save(storeKeys.doingAct);
       })
       .catch(handleRejectedCommon);
   }
