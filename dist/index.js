@@ -1718,7 +1718,10 @@ class UpcomingAct extends HTMLElement {
    */
   _render(act) {
     this.querySelector("[data-summary]").innerHTML = `<a href="${act.link}" target="_blank">${act.summary}</a>`;
-    this.querySelector("[data-time]").innerHTML = `${new MyDate(act.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(act.end).strftime("%H:%M")}`;
+    const dateTime = act.start && act.end?
+      `${new MyDate(act.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(act.end).strftime("%H:%M")}`:
+      new MyDate().strftime("%m/%d");
+    this.querySelector("[data-time]").innerHTML = dateTime;
 
     const startButton = this.querySelector("[data-start]");
     startButton.disabled = this.isActDoing;
@@ -1798,8 +1801,8 @@ class UpcomingActList extends HTMLElement {
         const upcomings = [];
         res.result.items.forEach(item => {
           upcomings.push(new Act({
-            start: new Date(item.start.dateTime).getTime(),
-            end: new Date(item.end.dateTime).getTime(),
+            start: item.start.dateTime? new Date(item.start.dateTime).getTime(): null,
+            end: item.end.dateTime? new Date(item.end.dateTime).getTime(): null,
             summary: item.summary,
             description: item.description,
             link: item.htmlLink
