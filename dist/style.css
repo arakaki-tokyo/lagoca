@@ -46,7 +46,7 @@ body {
   display: none;
 }
 
-@media (min-height: 770px) and (min-width: 800px) {
+@media (min-height: 600px) and (min-width: 800px) {
   #tab{
     display: none;
   }
@@ -60,7 +60,7 @@ body {
   .page[data-page="page0"]{
     min-width: 300px;
     max-width: 35% !important;
-    height: 60%;
+    max-height: calc(100% - 323px);
     order: 1;
   }
   .page[data-page="page0"] > div{
@@ -73,7 +73,7 @@ body {
   .page[data-page="page2"]{
     min-width: 300px;
     max-width: 35% !important;
-    height: 30%;
+    height: initial;
   }
   .page{
     width: inherit !important;
@@ -132,6 +132,9 @@ body {
   margin-top: -35px;
   margin-bottom: 35px;
 }
+.page[data-page="page2"] .quill_holder{
+  height: 200px;
+}
 @media (min-height: 850px) {
   .quill_holder {
     height: 200px;
@@ -172,6 +175,7 @@ body {
   position: absolute !important;
   top: 0px;
   width: 100%;
+  min-height: 131px;
   z-index: 0;
 }
 [data-container] {
@@ -208,7 +212,7 @@ input[name="which_to_show"] + .act_list > header{
 input[name="which_to_show"]:checked + .act_list > header{
   background-color: inherit;
 }
-@media (min-height: 770px) and (min-width: 800px), (min-height: 810px) {
+@media (min-height: 640px) and (min-width: 800px), (min-height: 682px) {
   .act_lists_container{
     height: auto;
   }  
@@ -216,11 +220,13 @@ input[name="which_to_show"]:checked + .act_list > header{
     position: initial !important;
     margin-bottom: 1rem !important;
   }
-  done-act [data-description] {
-    display: block;
-  }
   input[name="which_to_show"] + .act_list > header{
     background-color: inherit;
+  }
+}
+@media (min-height: 770px) and (min-width: 800px), (min-height: 810px) {
+  done-act [data-description] {
+    display: block;
   }
 }
 /* ***************** */
