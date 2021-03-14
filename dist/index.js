@@ -57,7 +57,6 @@ const storeKeys = {
   notice: "notice",
   doneActList: "doneActList",
   sw: "sw",
-  idb: "idb",
   toBeStartedAct: "toBeStartedAct"
 };
 
@@ -106,8 +105,6 @@ class Cron {
   }
 }
 const OSs = {
-  // key: 0, value: {start, end}
-  SW: { name: "SW" },
   App: {name: "App", option: {keyPath: "key"}},
   DoneAct: {name: "DoneAct", option: {keyPath: "start"}},
   Routine: { name: "Routine", option: { keyPath: 'id' }, index: [{ key: "order" }] },
@@ -1410,7 +1407,6 @@ class ActEnd extends HTMLButtonElement {
     Store.onChange(storeKeys.doingAct, this);
     Store.onChange(storeKeys.doneActList, this);
     Store.onChange(storeKeys.sw, this);
-    Store.onChange(storeKeys.idb, this);
   }
   connectedCallback() {
     this.addEventListener("click", () => {
@@ -1485,11 +1481,6 @@ class ActEnd extends HTMLButtonElement {
         break;
       case storeKeys.sw:
         this.dispatchEvent(new Event("click"));
-        break;
-      case storeKeys.idb:
-        if (value && this.doingAct.start == value.start) {
-          this.endProc(new Date(value.end));
-        }
         break;
       default:
     }
@@ -2459,9 +2450,6 @@ function appInit() {
   }));
 
   idb.init();
-  idb.getSW(0)
-    .then(val => Store.set(storeKeys.idb, val))
-    .catch(ev => console.log(ev));
 }
 
 function updateCalendarlist() {
@@ -2563,13 +2551,10 @@ const workerManager = new class {
     }
   }
   proc() {
-    if (this.serviceWorker) {
-      if (this.doingAct && this.settings.notificationEnabled) {
-        this.registeredJob = function () { this.serviceWorker.postMessage(this.doingAct) }.bind(this);
+    if (this.serviceWorker && this.settings.notificationEnabled) {
+      if (this.doingAct) {
         this.serviceWorker.postMessage(this.doingAct);
-        Cron.add(60_000, this.registeredJob);
       } else {
-        Cron.remove(60_000, this.registeredJob);
         this.serviceWorker.postMessage(null);
       }
     }
@@ -2816,4 +2801,3 @@ Store.onChange(storeKeys.doneActList, dbg);
 Store.onChange(storeKeys.addedCalendar, dbg);
 Store.onChange(storeKeys.calendars, dbg);
 Store.onChange(storeKeys.sw, dbg);
-Store.onChange(storeKeys.idb, dbg);
