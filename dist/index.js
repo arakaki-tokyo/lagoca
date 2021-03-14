@@ -492,13 +492,6 @@ const API = new class {
 /* *************************************** */
 /*  data classes definition                */
 /* *************************************** */
-const DATA = {
-  User: User,
-  Calendar: Calendar,
-  Settings: Settings,
-  Act: Act,
-  Notice: Notice
-};
 /**
  * ユーザーデータクラス
  *
@@ -549,26 +542,39 @@ function Settings({
  * @class Act
  * @extends {Data}
  */
-function Act({
-  isSynced = false,
-  start = Date.now(),
-  end = Date.now(),
-  elapsedTime = "",
-  id = "",
-  summary = "",
-  description = "",
-  link = "",
-  colorId = null
-}) {
-  this.isSynced = isSynced;
-  this.start = start;
-  this.end = end;
-  this.elapsedTime = elapsedTime;
-  this.id = id;
-  this.summary = summary;
-  this.description = description;
-  this.link = link;
-  this.colorId = colorId;
+class Act{
+  constructor({
+    isSynced = false,
+    start = Date.now(),
+    end = Date.now(),
+    elapsedTime = "",
+    id = "",
+    summary = "",
+    description = "",
+    link = "",
+    colorId = null
+  }) {
+    this.isSynced = isSynced;
+    this.start = start;
+    this.end = end;
+    this.elapsedTime = elapsedTime;
+    this.id = id;
+    this.summary = summary;
+    this.description = description;
+    this.link = link;
+    this.colorId = colorId;
+  }
+  getElapsedTime(){
+    const [h, m, s] = this._calcElapsedTime(this.start, this.end);
+    return `${h == 0 ? "" : h + "h"}${m}m`;
+  }
+  _calcElapsedTime(start, end) {
+    const elapsedTime = Math.floor((end - start) / 1000);
+    const h = Math.floor(elapsedTime / (60 * 60));
+    const m = Math.floor(elapsedTime / 60) % 60;
+    const s = elapsedTime % 60;
+    return [h, m, s];
+  }
 }
 /**
  * 通知データクラス
@@ -832,7 +838,7 @@ class SettingsModal extends HTMLElement {
     gapi.auth2.getAuthInstance().signOut();
   }
   apply() {
-    const newSettings = new DATA.Settings({
+    const newSettings = new Settings({
       upcomingEnabled: this.upcomingEnabled.checked,
       upcomingCalendarId: this.upcomingCalendarId.value,
       logCalendarId: this.logCalendarId.value,
@@ -1026,14 +1032,14 @@ class AddCalendar extends HTMLButtonElement {
     API.insertCalendar({ summary: newCalendarSummary })
       .then(res => {
         if (res.status == 200) {
-          Store.set(storeKeys.addedCalendar, new DATA.Calendar({ id: res.result.id, summary: res.result.summary }));
+          Store.set(storeKeys.addedCalendar, new Calendar({ id: res.result.id, summary: res.result.summary }));
         } else {
           throw new Error('The response status is other than "200".');
         }
       })
       .catch(err => {
         console.log(err);
-        Store.set(storeKeys.notice, new DATA.Notice({ message: "新しいカレンダーを作成できませんでした。" }));
+        Store.set(storeKeys.notice, new Notice({ message: "新しいカレンダーを作成できませんでした。" }));
       })
       .then(() => {
         Store.set(storeKeys.isAddCalInProgress, false);
@@ -1148,7 +1154,7 @@ class NotificationCheck extends HTMLInputElement {
     this.addEventListener("input", () => {
       if (this.checked) {
         if (this.permission === "denied") {
-          Store.set(storeKeys.notice, new DATA.Notice({ message: "このアプリからの通知が拒否されています。<br>デバイス、またはブラウザの設定を確認してください。" }));
+          Store.set(storeKeys.notice, new Notice({ message: "このアプリからの通知が拒否されています。<br>デバイス、またはブラウザの設定を確認してください。" }));
           this.checked = false;
         } else {
           const callback = permission => {
@@ -1334,7 +1340,7 @@ class ActStart extends HTMLButtonElement {
   }
   connectedCallback() {
     this.addEventListener("click", () => {
-      const newAct = new DATA.Act({ summary: this.summary, description: this.description });
+      const newAct = new Act({ summary: this.summary, description: this.description });
       this._startProc(newAct);
     })
   }
@@ -1423,7 +1429,7 @@ class ActEnd extends HTMLButtonElement {
       if (!this.doingAct) return;
       const toBeEndedAct = new Act(this.doingAct);
       toBeEndedAct.end = end.getTime();
-      toBeEndedAct.summary = `${this.summary} (${toBeEndedAct.elapsedTime})`;
+      toBeEndedAct.summary = `${this.summary} (${toBeEndedAct.getElapsedTime()})`;
       toBeEndedAct.description = this.description;
       Store.set(storeKeys.doingAct, null);
 
@@ -2432,7 +2438,7 @@ function handleClientLoad() {
         gapi.auth2.getAuthInstance().isSignedIn.listen(isSignedIn => Store.set(storeKeys.isSignedIn, isSignedIn));
       })
       .catch(error => {
-        Store.set(storeKeys.notice, new DATA.Notice({ message: "Some fatal errors occurred.<br>Try reloading this page.", duration: 1_000_000 }));
+        Store.set(storeKeys.notice, new Notice({ message: "Some fatal errors occurred.<br>Try reloading this page.", duration: 1_000_000 }));
         console.log(error);
       });
   });
@@ -2440,7 +2446,7 @@ function handleClientLoad() {
 
 function appInit() {
   // default settings
-  Store.set(storeKeys.settings, new DATA.Settings({
+  Store.set(storeKeys.settings, new Settings({
     logCalendarId: "primary",
     upcomingCalendarId: "primary",
     upcomingEnabled: false,
@@ -2460,9 +2466,9 @@ function updateCalendarlist() {
       const calendarList = [];
       calendars.forEach(calendar => {
         if (calendar.primary)
-          calendarList.push(new DATA.Calendar({ id: "primary", summary: "default" }));
+          calendarList.push(new Calendar({ id: "primary", summary: "default" }));
         else
-          calendarList.push(new DATA.Calendar({ id: calendar.id, summary: calendar.summary }));
+          calendarList.push(new Calendar({ id: calendar.id, summary: calendar.summary }));
       })
       Store.set(storeKeys.calendars, calendarList);
     })
@@ -2471,7 +2477,7 @@ function updateUserProfile() {
   const userBasicProfile = gapi.auth2.getAuthInstance().currentUser.get().getBasicProfile();
   Store.set(
     storeKeys.userProfile,
-    new DATA.User({ imgSrc: userBasicProfile.getImageUrl(), email: userBasicProfile.getEmail() })
+    new User({ imgSrc: userBasicProfile.getImageUrl(), email: userBasicProfile.getEmail() })
   );
 }
 function postEndProc(doneActList, doneAct) {
@@ -2492,11 +2498,11 @@ function handleRejectedCommon(err) {
   if (err.status == 400) {
     // do nothing
   } else if (err.status == 404) {
-    Store.set(storeKeys.notice, new DATA.Notice({ message: "Googleカレンダーにアクセスできませんでした。<br>カレンダー名を確認してください。" }));
+    Store.set(storeKeys.notice, new Notice({ message: "Googleカレンダーにアクセスできませんでした。<br>カレンダー名を確認してください。" }));
   } else if (err.status == 401) {
-    Store.set(storeKeys.notice, new DATA.Notice({ message: "Googleカレンダーにアクセスできませんでした。<br>ページを再読み込みしてください。" }));
+    Store.set(storeKeys.notice, new Notice({ message: "Googleカレンダーにアクセスできませんでした。<br>ページを再読み込みしてください。" }));
   } else {
-    Store.set(storeKeys.notice, new DATA.Notice({ message: "Googleカレンダーにアクセスできませんでした。<br>通信状態を確認してください。" }));
+    Store.set(storeKeys.notice, new Notice({ message: "Googleカレンダーにアクセスできませんでした。<br>通信状態を確認してください。" }));
   }
 }
 
