@@ -16,10 +16,12 @@ const messageRecieveHandler = new class {
     }
   }
   showActNotice(act) {
+    const startDate = new Date(act.start);
+    const h = String(startDate.getHours()).padStart(2, "0");
+    const m = String(startDate.getMinutes()).padStart(2, "0");
     self.registration.showNotification(
-      "LoGoCa",
+      `${act.summary} (${h}:${m} ~)`,
       {
-        body: `${act.summary}(${act.elapsedTime})`,
         badge,
         icon,
         renotify: false,
@@ -41,7 +43,8 @@ const notificationClickHandler = new class {
   click(e) {
     console.dir(e);
     e.notification.close();
-    const proc = (e.action === 'end') ? this.endAct : this.showPage;
+    const proc = (e.action === 'end') ? this.endAct.bind(this) : this.showPage;
+    
     e.waitUntil(
       self.clients.matchAll({ type: "window" })
         .then(cl => cl.find(c => c.url == `${location.origin}/`))
@@ -56,14 +59,42 @@ const notificationClickHandler = new class {
       return self.clients.openWindow(`${location.origin}/`);
     }
   }
-  endAct(client, e) {
+  async endAct(client, e) {
       if (client) {
         client.postMessage(null);
       } else {
         // save to indexedDB
-        return idb.put({start: e.notification.data, end: Date.now()});
+        let toBeEndedAct;
+        await idb.update("App", "doingAct", ({key, value}) => {
+          toBeEndedAct = {...value};
+          return {key, value: null};
+        });
+        toBeEndedAct.isSynced = false;
+        toBeEndedAct.end = Date.now();
+        const [h, m, s] = this.calcElapsedTime(toBeEndedAct.start, toBeEndedAct.end);
+        const elapsedTime = `${h == 0 ? "" : h + "h"}${m}m`;
+        await idb.update("App", "summaryToView", ({key, value}) => {
+          toBeEndedAct.summary = `${value} (${elapsedTime})`
+          return {key, value: ""};
+        });
+        await idb.update("App", "descriptionToView", ({key, value}) => {
+          toBeEndedAct.description = value;
+          return {key, value: ""};
+        });
+        return await idb.update("App", "doneActList", ({key, value}) =>  {
+          value.push(toBeEndedAct);
+          return {key, value};
+        });
       }
   }
+  calcElapsedTime(start, end) {
+    const elapsedTime = Math.floor((end - start) / 1000);
+    const h = Math.floor(elapsedTime / (60 * 60));
+    const m = Math.floor(elapsedTime / 60) % 60;
+    const s = elapsedTime % 60;
+    return [h, m, s];
+  }
+
 }
 
 const cacheHandler = new class{
@@ -104,14 +135,30 @@ const idb = new class {
       }
     })
   }
-  put(record) {
+  set(store, obj) {
     return this.db.then(db => {
-      return new Promise(resolve => {
-        db.transaction("sw", "readwrite")
-          .objectStore("sw")
-          .put(record, 0)
-          .onsuccess = ev => resolve(ev);
+      const req = db.transaction(store, "readwrite").objectStore(store).put(obj);
+      return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => resolve(ev.target.result);
+        req.onerrors = (ev) => reject(ev);
       })
-    })
+    });
   }
+  update(store, key, f) {
+    return this.db.then(db => {
+      const req = db.transaction(store, "readwrite").objectStore(store).openCursor(key);
+      return new Promise((resolve, reject) => {
+        req.onsuccess = (ev) => {
+          const cursor = ev.target.result;
+          if (cursor) {
+            cursor.update(f(cursor.value)).onsuccess = () => resolve(undefined);
+          } else {
+            this[`set${store}`](f()).then(() => resolve(undefined));
+          }
+        };
+        req.onerrors = (ev) => reject(ev);
+      })
+    });
+  }
+
 }
