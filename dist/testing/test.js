@@ -42,6 +42,17 @@ const testParams = {
                     },
                     summary: "testsummary1",
                     description: "description1 description1 description1"
+                },
+                {
+                    htmlLink: "calendar.google.com",
+                    start: {
+                        date: "2021-02-13"
+                    },
+                    end: {
+                        date: "2021-02-14"
+                    },
+                    summary: "testsummary1",
+                    description: "description1 description1 description1"
                 }
             ]
         }

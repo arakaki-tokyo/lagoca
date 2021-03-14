@@ -59,7 +59,7 @@ const storeKeys = {
   doneActList: "doneActList",
   sw: "sw",
   idb: "idb",
-  routine: "routine"
+  toBeStartedAct: "toBeStartedAct"
 };
 
 /* *************************************** */
@@ -631,7 +631,7 @@ class TabSwipeable extends HTMLDivElement {
     this.tabs = {};
     this.scrollHandler = this._scrollHandler.bind(this);
     Store.onChange(storeKeys.settings, this);
-    Store.onChange(storeKeys.routine, this);
+    Store.onChange(storeKeys.toBeStartedAct, this);
   }
   connectedCallback() {
     this.querySelectorAll("[data-tab]").forEach(tab => {
@@ -662,7 +662,7 @@ class TabSwipeable extends HTMLDivElement {
             .forEach(elm => elm.classList.add("is-hidden"));
         }    
         break;
-      case storeKeys.routine:
+      case storeKeys.toBeStartedAct:
         this.tabs.page1.tab.dispatchEvent(new Event("click"));
     }
   }
@@ -1310,7 +1310,7 @@ class ActStart extends HTMLButtonElement {
     Store.onChange(storeKeys.descriptionFromView, this);
     Store.onChange(storeKeys.isActDoing, this);
     Store.onChange(storeKeys.isSignedIn, this);
-    Store.onChange(storeKeys.routine, this);
+    Store.onChange(storeKeys.toBeStartedAct, this);
   }
   connectedCallback() {
     this.addEventListener("click", () => {
@@ -1358,8 +1358,8 @@ class ActStart extends HTMLButtonElement {
         else
           this.classList.remove("is-hidden");
         break;
-      case storeKeys.routine:
-        this._startProc(value.getAct());
+      case storeKeys.toBeStartedAct:
+        this._startProc(value);
         break;
       default:
     }
@@ -1667,8 +1667,14 @@ class DoneAct extends HTMLElement {
 
   }
   restart() {
-    Store.set(storeKeys.summaryToView, this.act.summary.replace(/ \([^(]*\d?m\)$/, ""));
-    Store.set(storeKeys.descriptionToView, this.act.description);
+    const newAct = new Act({
+      summary: this.act.summary.replace(/ \([^(]*\d?m\)$/, ""),
+      description: this.act.description,
+      colorId: this.act.colorId
+    });
+    Store.set(storeKeys.summaryToView, newAct.summary);
+    Store.set(storeKeys.descriptionToView, newAct.description);
+    Store.set(storeKeys.toBeStartedAct, newAct);
   }
   sync() {
     Queue.add(() => API.insertEvent({
@@ -1712,7 +1718,10 @@ class UpcomingAct extends HTMLElement {
    */
   _render(act) {
     this.querySelector("[data-summary]").innerHTML = `<a href="${act.link}" target="_blank">${act.summary}</a>`;
-    this.querySelector("[data-time]").innerHTML = `${new MyDate(act.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(act.end).strftime("%H:%M")}`;
+    const dateTime = act.start && act.end?
+      `${new MyDate(act.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(act.end).strftime("%H:%M")}`:
+      new MyDate().strftime("%m/%d");
+    this.querySelector("[data-time]").innerHTML = dateTime;
 
     const startButton = this.querySelector("[data-start]");
     startButton.disabled = this.isActDoing;
@@ -1720,8 +1729,13 @@ class UpcomingAct extends HTMLElement {
 
   }
   start() {
-    Store.set(storeKeys.summaryToView, this.act.summary);
-    Store.set(storeKeys.descriptionToView, this.act.description);
+    const newAct = new Act({
+      summary: this.act.summary,
+      description: this.act.description
+    })
+    Store.set(storeKeys.summaryToView, newAct.summary);
+    Store.set(storeKeys.descriptionToView, newAct.description);
+    Store.set(storeKeys.toBeStartedAct, newAct);
   }
 }
 class UpcomingActList extends HTMLElement {
@@ -1787,8 +1801,8 @@ class UpcomingActList extends HTMLElement {
         const upcomings = [];
         res.result.items.forEach(item => {
           upcomings.push(new Act({
-            start: new Date(item.start.dateTime).getTime(),
-            end: new Date(item.end.dateTime).getTime(),
+            start: item.start.dateTime? new Date(item.start.dateTime).getTime(): null,
+            end: item.end.dateTime? new Date(item.end.dateTime).getTime(): null,
             summary: item.summary,
             description: item.description,
             link: item.htmlLink
@@ -2181,7 +2195,7 @@ class RoutineContainer extends HTMLDivElement {
     if(this.doingAct) return;
 
     const startRoutine = this.routineList.find(routine => routine.id === Number(target.dataset.key));
-    Store.set(storeKeys.routine, new Routine(startRoutine));
+    Store.set(storeKeys.toBeStartedAct, new Routine(startRoutine).getAct());
     Store.set(storeKeys.summaryToView, startRoutine.summary);
     Store.set(storeKeys.descriptionToView, startRoutine.description);
   }
