@@ -105,8 +105,8 @@ class Cron {
   }
 }
 const OSs = {
-  App: {name: "App", option: {keyPath: "key"}},
-  DoneAct: {name: "DoneAct", option: {keyPath: "start"}},
+  App: { name: "App", option: { keyPath: "key" } },
+  DoneAct: { name: "DoneAct", option: { keyPath: "start" } },
   Routine: { name: "Routine", option: { keyPath: 'id' }, index: [{ key: "order" }] },
   Diary: { name: "Diary", option: { keyPath: 'date' }, index: [{ key: "isSynced" }] },
 };
@@ -143,25 +143,25 @@ const idb = new class {
       this[`delete${OS.name}`] = key => this._delete(OS.name, key);
     })
   }
-  init(){
+  init() {
     this.getAllApp()
-    .then(list => list.forEach(({key, value}) => {
-      Store.set(key, value);
-      this[key] = value;
-    }))
-    .then(() => {
-      Store.onChange(storeKeys.doingAct, this);
-      Store.onChange(storeKeys.settings, this);
-      Store.onChange(storeKeys.doneActList, this);
-    });
+      .then(list => list.forEach(({ key, value }) => {
+        Store.set(key, value);
+        this[key] = value;
+      }))
+      .then(() => {
+        Store.onChange(storeKeys.doingAct, this);
+        Store.onChange(storeKeys.settings, this);
+        Store.onChange(storeKeys.doneActList, this);
+      });
 
   }
-  update({key, value}){
-    this.setApp({key, value});
+  update({ key, value }) {
+    this.setApp({ key, value });
     this[key] = value;
   }
-  save(key){
-    this.setApp({key, value: this[key]});
+  save(key) {
+    this.setApp({ key, value: this[key] });
   }
   _get(store, key) {
     return this.db.then(db => {
@@ -221,7 +221,7 @@ const idb = new class {
         req.onerrors = (ev) => reject(ev);
       })
     });
-    }
+  }
   _update(store, key, f) {
     return this.db.then(db => {
       const req = db.transaction(store, "readwrite").objectStore(store).openCursor(key);
@@ -375,7 +375,7 @@ const API = new class {
           dateTime: end,
           timeZone: "Asia/Tokyo",
         },
-        colorId: colorId? colorId:this.colorId,
+        colorId: colorId ? colorId : this.colorId,
       },
     });
   }
@@ -429,7 +429,7 @@ const API = new class {
           dateTime: end,
           timeZone: "Asia/Tokyo",
         },
-        colorId: colorId? colorId:this.colorId,
+        colorId: colorId ? colorId : this.colorId,
       },
     });
   }
@@ -542,7 +542,7 @@ function Settings({
  * @class Act
  * @extends {Data}
  */
-class Act{
+class Act {
   constructor({
     isSynced = false,
     start = Date.now(),
@@ -564,7 +564,7 @@ class Act{
     this.link = link;
     this.colorId = colorId;
   }
-  getElapsedTime(){
+  getElapsedTime() {
     const [h, m, s] = this._calcElapsedTime(this.start, this.end);
     return `${h == 0 ? "" : h + "h"}${m}m`;
   }
@@ -626,11 +626,11 @@ class Routine {
     this.description = description;
     this.color = color;
   }
-  getAct(){
+  getAct() {
     return new Act({
       summary: this.summary,
       description: this.description,
-      colorId: this.color? this.color.id: null
+      colorId: this.color ? this.color.id : null
     })
   }
 }
@@ -676,15 +676,15 @@ class TabSwipeable extends HTMLDivElement {
     this.view.style.scrollBehavior = "smooth";
   }
   update({ key, value }) {
-    switch(key){
+    switch (key) {
       case storeKeys.settings:
         if (value.diaryEnabled) {
           Object.values(this.tabs.page2)
             .forEach(elm => elm.classList.remove("is-hidden"));
-          } else {
+        } else {
           Object.values(this.tabs.page2)
             .forEach(elm => elm.classList.add("is-hidden"));
-        }    
+        }
         break;
       case storeKeys.toBeStartedAct:
         this.tabs.page1.tab.dispatchEvent(new Event("click"));
@@ -1247,7 +1247,7 @@ class Summary extends HTMLInputElement {
   connectedCallback() {
     this.addEventListener("input", () => {
       Store.set(storeKeys.summaryFromView, this.value);
-      idb.setApp({key: storeKeys.summaryToView, value: this.value});
+      idb.setApp({ key: storeKeys.summaryToView, value: this.value });
     });
   }
   update({ key, value }) {
@@ -1299,7 +1299,7 @@ class Description extends HTMLElement {
     this.editor.classList.add("textarea", "has-fixed-size");
     this.quill.on("text-change", () => {
       Store.set(storeKeys.descriptionFromView, this.editor.innerHTML);
-      idb.setApp({key: storeKeys.descriptionToView, value: this.editor.innerHTML});
+      idb.setApp({ key: storeKeys.descriptionToView, value: this.editor.innerHTML });
     })
   }
   update({ key, value }) {
@@ -1344,7 +1344,7 @@ class ActStart extends HTMLButtonElement {
       this._startProc(newAct);
     })
   }
-  _startProc(act){
+  _startProc(act) {
     const now = new Date();
     Store.set(storeKeys.doingAct, act);
     if (this.isSignedIn) {
@@ -1365,7 +1365,7 @@ class ActStart extends HTMLButtonElement {
           .catch(handleRejectedCommon);
       });
     }
-}
+  }
   update({ key, value }) {
     switch (key) {
       case storeKeys.summaryFromView:
@@ -1516,15 +1516,15 @@ class TimeElapsed extends HTMLElement {
     switch (key) {
       case storeKeys.doingAct:
         if (value) {
-          if(this.doingAct) return;
+          if (this.doingAct) return;
           this.doingAct = value;
 
           this.start = value.start;
           this.doTimeout();
           this.registeredJob = this.doTimeout.bind(this);
           Cron.add(1000, this.registeredJob);
-        }else{
-          if(!this.doingAct) return;
+        } else {
+          if (!this.doingAct) return;
           this.doingAct = value;
 
           Cron.remove(1000, this.registeredJob);
@@ -1601,7 +1601,7 @@ class DoneActList extends HTMLElement {
         this.listContainer.innerHTML = "";
         value.forEach(act => {
           const doneAct = document.createElement("done-act");
-          doneAct.init({ tmpl: this.tmpl, act, isSignedIn: this.isSignedIn, isActDoing: this.doingAct? true: false });
+          doneAct.init({ tmpl: this.tmpl, act, isSignedIn: this.isSignedIn, isActDoing: this.doingAct ? true : false });
           this.listContainer.insertAdjacentElement('afterbegin', doneAct);
         })
         break;
@@ -1636,7 +1636,7 @@ class DoneAct extends HTMLElement {
   update({ key, value }) {
     switch (key) {
       case storeKeys.doingAct:
-        this.isActDoing = value? true: false;
+        this.isActDoing = value ? true : false;
         this._render(this.act);
         break;
       case storeKeys.isSignedIn:
@@ -1720,7 +1720,7 @@ class UpcomingAct extends HTMLElement {
     Store.onChange(storeKeys.doingAct, this);
   }
   update({ key, value }) {
-    this.isActDoing = value? true: false;
+    this.isActDoing = value ? true : false;
     this._render(this.act)
   }
   init({ tmpl, act, isActDoing }) {
@@ -1735,8 +1735,8 @@ class UpcomingAct extends HTMLElement {
    */
   _render(act) {
     this.querySelector("[data-summary]").innerHTML = `<a href="${act.link}" target="_blank">${act.summary}</a>`;
-    const dateTime = act.start && act.end?
-      `${new MyDate(act.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(act.end).strftime("%H:%M")}`:
+    const dateTime = act.start && act.end ?
+      `${new MyDate(act.start).strftime("%m/%d %H:%M")} ~ ${new MyDate(act.end).strftime("%H:%M")}` :
       new MyDate().strftime("%m/%d");
     this.querySelector("[data-time]").innerHTML = dateTime;
 
@@ -1782,7 +1782,7 @@ class UpcomingActList extends HTMLElement {
   update({ key, value }) {
     switch (key) {
       case storeKeys.doingAct:
-        this.isActDoing = value? true: false;
+        this.isActDoing = value ? true : false;
         break;
       case storeKeys.settings:
       case storeKeys.isSignedIn:
@@ -1818,8 +1818,8 @@ class UpcomingActList extends HTMLElement {
         const upcomings = [];
         res.result.items.forEach(item => {
           upcomings.push(new Act({
-            start: item.start.dateTime? new Date(item.start.dateTime).getTime(): null,
-            end: item.end.dateTime? new Date(item.end.dateTime).getTime(): null,
+            start: item.start.dateTime ? new Date(item.start.dateTime).getTime() : null,
+            end: item.end.dateTime ? new Date(item.end.dateTime).getTime() : null,
             summary: item.summary,
             description: item.description,
             link: item.htmlLink
@@ -2037,7 +2037,7 @@ class DiaryContainer extends HTMLDivElement {
       })
     } else {
       idb.updateDiary(this.date.value, diary => {
-        const updateDiary = diary? diary: new Diary({calendarId: this.calendarId, date: this.date.value});
+        const updateDiary = diary ? diary : new Diary({ calendarId: this.calendarId, date: this.date.value });
         updateDiary.value = e.target.value;
         updateDiary.timestamp = Date.now();
         updateDiary.isSynced = FALSE;
@@ -2153,7 +2153,7 @@ class RoutineContainer extends HTMLDivElement {
       });
     })
   }
-  update({key, value}){
+  update({ key, value }) {
     this[key] = value;
   }
   renderContents(routine) {
@@ -2163,24 +2163,24 @@ class RoutineContainer extends HTMLDivElement {
     li.innerHTML = `
       <div class="routine_details"><span class="button sortable-handle"><svg class="icon"><use xlink:href="#icon-arrows-v"></use></svg></span></div>
       <div class="routine_details"><svg data-key="${routine.id}" data-action="start" class="icon has-text-primary is-clickable"><use xlink:href="#icon-play-outline"></use></svg></div>
-      <div class="routine_details has-text-weight-bold is-size-7 routine_summary"><span ${routine.color?'style="background: linear-gradient(transparent 60% , '+routine.color.value+', transparent 110%);"':""}>${routine.summary}</span></div>
+      <div class="routine_details has-text-weight-bold is-size-7 routine_summary"><span ${routine.color ? 'style="background: linear-gradient(transparent 60% , ' + routine.color.value + ', transparent 110%);"' : ""}>${routine.summary}</span></div>
       <div class="routine_details"><svg data-key="${routine.id}" data-action="edit" class="icon has-text-danger-dark is-clickable"><use xlink:href="#icon-pencil"></use></svg></div>
       <div class="routine_details"><button data-key="${routine.id}" data-action="delete" class="delete"></button></div>
     `;
     return li;
   }
   routineUpdateHandler() {
-    if(this.routineList.length === this.editingRoutine.order){
+    if (this.routineList.length === this.editingRoutine.order) {
       this.container.appendChild(this.renderContents(this.editingRoutine));
-    }else{
+    } else {
       this.container.children[this.editingRoutine.order].innerHTML = this.renderContents(this.editingRoutine).innerHTML;
     }
     this.updateRoutineList();
   }
-  updateRoutineList(){
+  updateRoutineList() {
     return idb.getIndexAllRoutine("order").then(list => this.routineList = list);
   }
-  updateRoutineOrder(){
+  updateRoutineOrder() {
     let queue = Promise.resolve();
     [...this.container.children].forEach((li, idx) => {
       queue = queue.then(() => {
@@ -2208,8 +2208,8 @@ class RoutineContainer extends HTMLDivElement {
         this.updateRoutineOrder();
       });
   }
-  start(target){
-    if(this.doingAct) return;
+  start(target) {
+    if (this.doingAct) return;
 
     const startRoutine = this.routineList.find(routine => routine.id === Number(target.dataset.key));
     Store.set(storeKeys.toBeStartedAct, new Routine(startRoutine).getAct());
@@ -2269,14 +2269,14 @@ class RoutineModal extends HTMLElement {
     this.editingRoutine.description = this.description.value;
     if (!this.samecolor.checked && this.color.value) {
       this.editingRoutine.color = { id: this.color.value, value: this.color.colorValue };
-    }else{
+    } else {
       this.editingRoutine.color = null;
     }
 
     idb.updateRoutine(this.editingRoutine.id, routine => {
       return this.editingRoutine;
     }).then(() => this.dispatchEvent(new Event("update")));
-    
+
     this.classList.remove("is-active");
   }
 }
@@ -2614,13 +2614,13 @@ const titleManager = new class {
         break;
       case storeKeys.doingAct:
         if (value) {
-          if(this.doingAct) return;
+          if (this.doingAct) return;
           this.doingAct = value;
 
           this.registeredJob = this.proc.bind(this);
           Cron.add(1_000, this.registeredJob);
-        }else{
-          if(!this.doingAct) return;
+        } else {
+          if (!this.doingAct) return;
           this.doingAct = value;
 
           Cron.remove(1_000, this.registeredJob);
