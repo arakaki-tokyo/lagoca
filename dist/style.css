@@ -10,8 +10,8 @@ html,
 body {
   height: 100%;
 }
-#main{
-  padding-top: .1px;
+#main {
+  padding-top: 0.1px;
   height: 100%;
   position: relative;
 }
@@ -19,66 +19,69 @@ body {
 /* ***************** */
 /* tab & page style  */
 /* ***************** */
-#tab li{
+#tab li {
   flex: 1 1 auto;
   min-width: 120px;
 }
-#tab a{ padding: 0.5em;}
-#tab .icon{ margin-left: 0;}
-#view{
-  position:absolute;
-  top:0;
-  bottom:0;
+#tab a {
+  padding: 0.5em;
+}
+#tab .icon {
+  margin-left: 0;
+}
+#view {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   width: 100%;
   scroll-snap-type: x mandatory;
   display: flex;
-  margin-top:42px;
+  margin-top: 42px;
   overflow-x: scroll;
 }
-.page{
+.page {
   height: 100%;
   width: 100% !important;
   max-width: none !important;
   flex: none;
   scroll-snap-align: center;
 }
-.page > .subtitle{
+.page > .subtitle {
   display: none;
 }
 
 @media (min-height: 600px) and (min-width: 800px) {
-  #tab{
+  #tab {
     display: none;
   }
-  #view{
-    margin-top:0;
+  #view {
+    margin-top: 0;
     flex-direction: column;
     flex-wrap: wrap;
-    align-content: space-around;  /* horizontal spacing */
+    align-content: space-around; /* horizontal spacing */
     justify-content: space-between; /* vertical spacing */
   }
-  .page[data-page="page0"]{
+  .page[data-page="page0"] {
     min-width: 300px;
     max-width: 35% !important;
     max-height: calc(100% - 323px);
     order: 1;
   }
-  .page[data-page="page0"] > div{
+  .page[data-page="page0"] > div {
     height: calc(100% - 30px) !important;
   }
-  .page[data-page="page1"]{
+  .page[data-page="page1"] {
     max-width: 60% !important;
-
   }
-  .page[data-page="page2"]{
+  .page[data-page="page2"] {
     min-width: 300px;
     max-width: 35% !important;
     height: initial;
   }
-  .page{
+  .page {
     width: inherit !important;
   }
-  .page > .subtitle{
+  .page > .subtitle {
     display: block !important;
     color: white;
     text-shadow: 1px 1px black, -0.5px -0.5px lightgrey;
@@ -88,34 +91,34 @@ body {
 /* **************** */
 /* sortablejs style */
 /* **************** */
-.sortable-ghost{
-  background: hsl(0,0%,90%);
+.sortable-ghost {
+  background: hsl(0, 0%, 90%);
   box-shadow: 0 0 5px inset hsl(180deg 100% 30%);
 }
-.routine_item{
+.routine_item {
   border-bottom: solid 1px lightgrey;
-  padding: .5rem;
+  padding: 0.5rem;
 }
-.routine_details{
+.routine_details {
   flex: 0 1 40px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
-.routine_details.routine_summary{
+.routine_details.routine_summary {
   flex: 1 1 140px;
   justify-content: flex-start;
   overflow-x: hidden;
 }
-.sortable-handle{
+.sortable-handle {
   cursor: grab !important;
 }
-.sortable-handle > svg{
+.sortable-handle > svg {
   color: dimgray;
 }
-.sortable-ghost .sortable-handle > svg{
+.sortable-ghost .sortable-handle > svg {
   color: hsl(180, 100%, 50%);
-} 
+}
 
 /* ***************** */
 /* quill style       */
@@ -132,7 +135,7 @@ body {
   margin-top: -35px;
   margin-bottom: 35px;
 }
-.page[data-page="page2"] .quill_holder{
+.page[data-page="page2"] .quill_holder {
   height: 200px;
 }
 @media (min-height: 850px) {
@@ -164,12 +167,12 @@ body {
 /* ***************** */
 /* Act lists style   */
 /* ***************** */
-.act_lists_container{
+.act_lists_container {
   position: relative;
   height: 162px;
   overflow: hidden;
 }
-.act_list{
+.act_list {
   transition-duration: 100ms;
   display: block;
   position: absolute !important;
@@ -202,25 +205,25 @@ done-act [data-description] {
 input[name="which_to_show"] {
   display: none;
 }
-input[name="which_to_show"]:checked + .act_list{
+input[name="which_to_show"]:checked + .act_list {
   top: 30px;
   z-index: 1;
 }
-input[name="which_to_show"] + .act_list > header{
+input[name="which_to_show"] + .act_list > header {
   background-color: gray;
 }
-input[name="which_to_show"]:checked + .act_list > header{
+input[name="which_to_show"]:checked + .act_list > header {
   background-color: inherit;
 }
 @media (min-height: 640px) and (min-width: 800px), (min-height: 682px) {
-  .act_lists_container{
+  .act_lists_container {
     height: auto;
-  }  
-  .act_list{
+  }
+  .act_list {
     position: initial !important;
     margin-bottom: 1rem !important;
   }
-  input[name="which_to_show"] + .act_list > header{
+  input[name="which_to_show"] + .act_list > header {
     background-color: inherit;
   }
 }
@@ -252,7 +255,7 @@ time {
   text-align: center;
 }
 
-.is-active a{
+.is-active a {
   background-color: #f5f5f5 !important;
 }
 
