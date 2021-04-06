@@ -233,6 +233,190 @@ input[name="which_to_show"]:checked + .act_list > header {
   }
 }
 /* ***************** */
+/* todo styles       */
+/* ***************** */
+select-tasklist.no_item > .dropdown-trigger > button {
+  width: 330px;
+}
+.dropdown-trigger > button {
+  width: 200px;
+  justify-content: space-between;
+}
+.dropdown-menu.override {
+  max-width: 330px;
+}
+tasklist-item.dropdown-item {
+  display: inline-flex;
+  cursor: pointer;
+  padding-right: 3rem;
+  text-align: inherit;
+  white-space: nowrap;
+  width: 100%;
+}
+tasklist-item.is-active {
+  background-color: #3273dc;
+  color: #fff;
+}
+tasklist-item:hover {
+  background-color: #f5f5f5;
+  color: #0a0a0a;
+}
+.dropdown-item > [data-action="edit"] {
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  margin-right: 1rem;
+}
+.dropdown-item > [data-action="edit"] > svg {
+  width: 1rem;
+  height: 1rem;
+}
+.dropdown-item > [data-role="listTitle"] {
+  max-width: 85%;
+  overflow: scroll;
+}
+.dropdown-item > [data-action="delete"] {
+  position: absolute;
+  right: 1rem;
+}
+
+#todo_tasks_container {
+  padding: 0.1px;
+  height: calc(100% - 97px);
+  overflow-y: scroll;
+}
+/* todo tasks style */
+.parent.task_item {
+  margin-bottom: 2px !important;
+  margin-left: 40px;
+}
+[data-role="subTaskItemList"] {
+  display: flex;
+  flex-direction: column;
+}
+/* subTasks style */
+.sub.task_item {
+  margin: 0 0 0 20px;
+  overflow: hidden;
+  border-top: solid 1px lightgrey;
+}
+.task_item [data-role="subTasks"] {
+  overflow: hidden;
+}
+.task_item [data-role="subTasks"] {
+  height: 0;
+}
+/* expand a taskItem area */
+.task_item input[name="tasks"]:checked ~ [data-role="subTasks"] {
+  height: initial;
+}
+input[name="tasks"] ~ div {
+  transition-duration: 100ms;
+}
+.task_item:not(:first-child):not(:last-child)
+  input[name="tasks"]:checked
+  ~ div {
+  margin: 1rem 0;
+}
+.task_item:first-child input[name="tasks"]:checked ~ div {
+  margin: 0 0 1rem;
+}
+.task_item:last-child input[name="tasks"]:checked ~ div {
+  margin: 1rem 0 0;
+}
+/* task detais -- some icons or text -- style */
+.task_details {
+  flex: 0 1 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.task_details:not(.sortable-handle) .button {
+  border: none;
+}
+.task_details.sortable-handle {
+  margin-left: -40px;
+}
+
+.task_details.task_title {
+  flex: 1 1 140px;
+  justify-content: flex-start;
+  overflow-x: hidden;
+}
+.task_title label {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: scroll;
+}
+.task_title .task_title_text {
+  white-space: nowrap;
+}
+.task_details.task_title label .tags {
+  margin: 0;
+}
+.task_details.task_title label .tag {
+  height: 18px;
+  margin: 0;
+}
+.task_details[data-action="complete"]:hover svg,
+.task_details[data-action="complete"].hover svg {
+  color: #3273dc !important;
+}
+
+/* completed tasks style */
+.task_item.completed .task_details[data-action="complete"] svg {
+  color: #3273dc !important;
+}
+/* completed subTasks style */
+[data-role="subTasks"] .task_item.completed .task_title_text {
+  text-decoration: line-through;
+  color: gray;
+}
+/* completed tasks style in completed-task */
+completed-task .parent.task_item {
+  margin-left: 0px;
+}
+completed-task
+  .task_details:not(.task_title):not([data-action="delete"]):not(:last-child) {
+  display: none;
+}
+completed-task .task_details[data-action="complete"] {
+  order: -1;
+}
+completed-task input[name="tasks"] ~ [data-role="subTasks"] {
+  height: 0 !important;
+}
+/* tasks sortable style */
+task-modal [data-action="delete"] {
+  background-color: inherit;
+  margin-right: 1rem;
+  display: flex;
+  align-content: center;
+}
+task-modal [data-action="delete"] svg {
+  width: 20px;
+  height: 20px;
+}
+task-modal [data-action="delete"]:hover {
+  animation-name: vibrate;
+  animation-duration: 100ms;
+  animation-iteration-count: 3;
+}
+@keyframes vibrate {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  50% {
+    transform: translate(1px, 0px) rotateZ(1deg);
+  }
+}
+task-modal [data-role="date"] {
+  width: 160px;
+}
+/* ***************** */
 /* other styles      */
 /* ***************** */
 #notification {
@@ -261,4 +445,11 @@ time {
 
 label > * {
   vertical-align: middle;
+}
+.dropdown > .dropdown-trigger svg {
+  transition-duration: 100ms;
+}
+.dropdown.is-active > .dropdown-trigger svg {
+  transform: rotate(180deg);
+  transition-duration: 100ms;
 }
