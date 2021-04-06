@@ -562,6 +562,340 @@ const API = new class {
       discription: "created by LoGoCa"
     });
   }
+
+  /**
+   *  アカウントのタスクリストをリストする
+   *
+   * @return {*} 
+   */
+  listTasklist() {
+    return gapi.client.tasks.tasklists.list();
+  }
+  /**
+   * 新しいタスクリストを挿入する
+   *
+   * @param {TaskList} taskList
+   * @return {PromiseLike} 
+   */
+  insertTaskList(taskList) {
+    return gapi.client.tasks.tasklists.insert({ resource: TaskList.toAPI(taskList) });
+  }
+  /**
+   * タスクリストを更新する
+   *
+   * @param {TaskList} taskList
+   * @return {PromiseLike} 
+   */
+  updateTaskList(taskList) {
+    return gapi.client.tasks.tasklists.update({
+      tasklist: taskList.id,
+      resource: TaskList.toAPI(taskList)
+    });
+  }
+  /**
+   * タスクリストを削除する
+   *
+   * @param {TaskList} taskList
+   * @return {PromiseLike} 
+   */
+  deleteTaskList(taskList) {
+    return gapi.client.tasks.tasklists.delete({ tasklist: taskList.id });
+  }
+
+  /**
+   *
+   *
+   * @param {String} tasklist 
+   * @return {PromiseLike} 
+   */
+  listTask(tasklist) {
+    return gapi.client.tasks.tasks.list({
+      tasklist,
+      showHidden: true
+    });
+  }
+  /**
+   * 新しいタスクを挿入する
+   *
+   * @param {Task} task
+   * @return {PromiseLike} 
+   */
+  insertTask(task) {
+    return gapi.client.tasks.tasks.insert({
+      tasklist: task.listId,
+      parent: task.parent,
+      resource: Task.toAPI(task)
+    });
+  }
+  /**
+   * タスクを更新する
+   *
+   * @param {Task} task
+   * @return {PromiseLike} 
+   */
+  updateTask(task) {
+    return gapi.client.tasks.tasks.update({
+      tasklist: task.listId,
+      task: task.id,
+      resource: Task.toAPI(task)
+    });
+  }
+  /**
+   * タスクを移動する
+   *
+   * @param {Task} task
+   * @param {String} previous
+   * @return {PromiseLike} 
+   */
+  moveTask(task, previous) {
+    return gapi.client.tasks.tasks.move({
+      tasklist: task.listId,
+      task: task.id,
+      parent: task.parent,
+      previous
+    });
+  }
+  /**
+   * タスクを削除する
+   *
+   * @param {Task} task
+   * @return {PromiseLike} 
+   */
+  deleteTask(task) {
+    return gapi.client.tasks.tasks.delete({
+      tasklist: task.listId,
+      task: task.id
+    });
+  }
+
+}
+const ToDoUtils = new class ToDoUtils {
+  isSignedIn;
+  constructor() {
+    Store.onChange(storeKeys.isSignedIn, this);
+  }
+  /**
+   * @param {object} object
+   * @param {Boolean} object.value
+   */
+  update({ key, value }) {
+    switch (key) {
+      case storeKeys.isSignedIn:
+        this.isSignedIn = value;
+        break;
+    }
+  }
+  /**
+   * タスクリストを挿入する
+   *
+   * @param {TaskList} taskList
+   * @param {Boolean} [toSync=this.isSignedIn]
+   */
+  async insertTaskList(taskList, toSync = this.isSignedIn) {
+    await idb.setTaskList(taskList);
+    if (toSync) {
+      await API.insertTaskList(taskList).then(async res => {
+        const insertedTaskList = TaskList.fromAPI(res.result);
+        await idb.setTaskList(insertedTaskList)
+          .then(() => idb.deleteTaskList(taskList.id));
+
+        const tasks = await idb.getIndexAllTask("listId", ALL_TASK_LISTID(taskList.id));
+        for (const task of tasks) {
+          await idb.updateTask(task.id, /** @param {Task} t */t => {
+            t.listId = res.result.id;
+            return t;
+          })
+        }
+        Store.set(storeKeys.listInserted, true);
+      }).then(res => console.log(res))
+    }
+  }
+  /**
+   * タスクリストを更新する
+   *
+   * @param {TaskList} taskList
+   * @param {Boolean} [toSync=this.isSignedIn]
+   */
+  async updateTaskList(taskList, toSync = this.isSignedIn) {
+    await idb.setTaskList(taskList);
+    if (toSync) {
+      await API.updateTaskList(taskList).then(async res => {
+        await idb.updateTaskList(taskList.id, () => TaskList.fromAPI(res.result))
+      })
+    }
+  }
+  /**
+   * タスクリストを削除する
+   * @param {TaskList} taskList
+   * @param {Boolean} [toSync=this.isSignedIn]
+   * @memberof ToDoUtils
+   */
+  async deleteTaskList(taskList, toSync = this.isSignedIn) {
+    const tasks = await idb.getIndexAllTask("listId", ALL_TASK_LISTID(taskList.id));
+
+    // in Google Tasks, tasks are deleted with tasklist.
+    for (const task of tasks) await idb.deleteTask(task.id);
+
+    if (toSync && !SyncAction.INSERT.isSame(taskList.action)) {
+      await idb.updateTaskList(taskList.id, /** @param {TaskList}taskList */taskList => {
+        taskList.isSynced = false;
+        taskList.action = SyncAction.DELETE;
+        taskList.updated = new Date();
+        return taskList;
+      });
+      await API.deleteTaskList(taskList).then(() => {
+        idb.deleteTaskList(taskList.id);
+      }).catch(async res => {
+        if (res.result.error.message === "Invalid Value") {
+          await idb.updateTaskList(taskList.id, /** @param {TaskList}taskList */taskList => {
+            taskList.isSynced = true;
+            taskList.action = null;
+            taskList.updated = new Date();
+            return taskList;
+          });
+          throw new Error("This is default list, so can not be deleted.");
+        }
+      });
+    } else {
+      await idb.deleteTaskList(taskList.id);
+    }
+  }
+  /**
+   * タスクを挿入する
+   *
+   * @param {Task} task
+   * @param {TaskItem} taskItem
+   */
+  async insertTask(task, taskItem) {
+    await idb.setTask(task);
+    if (this.isSignedIn) {
+      let newId;
+      await API.insertTask(task).then(async res => {
+        const newTask = Task.fromAPI(res.result);
+        newId = newTask.id;
+        newTask.listId = task.listId;
+        await idb.setTask(newTask);
+        await idb.deleteTask(task.id);
+        if (taskItem) taskItem.task = newTask;
+
+        const children = await idb.getIndexAllTask("parent", task.id);
+        for (const child of children) {
+          await idb.updateTask(child.id, task => {
+            task.parent = newTask.id;
+            return task;
+          })
+        }
+      })
+      return newId;
+    }
+  }
+  /**
+   * タスクを更新する
+   * @param {Task} updatedTask
+   * @param {Boolean} [toSync=this.isSignedIn]
+   */
+  async updateTask(updatedTask, toSync = this.isSignedIn) {
+    await idb.setTask(updatedTask);
+    if (toSync) {
+      await API.updateTask(updatedTask).then(async res => {
+        const newTask = Task.fromAPI(res.result);
+        newTask.listId = updatedTask.listId;
+        await idb.setTask(newTask);
+      })
+    }
+  }
+  /**
+   * タスクを別のリストに移動する
+   *
+   * @param {Task} from
+   * @param {Task} to
+   */
+  async transferTask(from, to) {
+    await idb.setTask(to);
+    const children = await idb.getIndexAllTask("parent", to.id);
+    const movedChildren = [];
+    for (const child of children) {
+      await idb.updateTask(child.id, t => {
+        t.isSynced = false;
+        t.listId = to.listId;
+        t.updated = new Date();
+        movedChildren.push(t);
+        return t;
+      })
+    }
+
+    if (this.isSignedIn) {
+      movedChildren.sort((a, b) => b.position - a.position); // descending order
+      await API.insertTask(to).then(async res => {
+        const newTask = Task.fromAPI(res.result);
+        newTask.listId = to.listId;
+        await idb.setTask(newTask);
+
+        const waitResult = [];
+        movedChildren.forEach(child => {
+          child.parent = newTask.id;
+          const result = API.insertTask(child).then(async res => {
+            const newChild = Task.fromAPI(res.result);
+            newChild.listId = to.listId;
+            await idb.setTask(newChild);
+          }).catch(async () => {
+            await idb.setTask(child);
+          });
+          waitResult.push(result);
+        })
+        await Promise.all(waitResult);
+        await this.deleteTask(from);
+      })
+    }
+
+  }
+  /**
+   * タスクをソートする
+   * @param {TaskItem} taskItem
+   * @param {Boolean} [toSync=this.isSignedIn]
+   */
+  async sortTask(taskItem, toSync = this.isSignedIn) {
+    if (toSync) {
+      let previous;
+      if (taskItem.previousElementSibling) { previous = taskItem.previousElementSibling.id }
+      await API.moveTask(taskItem.task, previous)
+    }
+  }
+  /**
+   * タスクを削除する
+   *
+   * @param {Task} task
+   * @param {Boolean} [toSync=this.isSignedIn]
+   */
+  async deleteTask(task, toSync = this.isSignedIn) {
+    const children = await idb.getIndexAllTask("parent", task.id);
+
+    if (toSync) {
+      // call API -- Children are deleted whith parent.
+      await API.deleteTask(task).then(async () => {
+        for (const child of children) await idb.deleteTask(child.id);
+        await idb.deleteTask(task.id);
+      }).catch(async () => {
+        await idb.updateTask(task.id, t => {
+          t.isSynced = false;
+          t.action = SyncAction.DELETE;
+          t.updated = new Date();
+          return t;
+        });
+        for (const child of children) {
+          await idb.updateTask(child.id, t => {
+            t.isSynced = false;
+            t.action = SyncAction.DELETE;
+            t.updated = new Date();
+            return t;
+          });
+        }
+      });
+    } else {
+      for (const child of children) await idb.deleteTask(child.id);
+      await idb.deleteTask(task.id);
+    }
+  }
 }
 
 /* *************************************** */
@@ -2675,8 +3009,12 @@ function handleClientLoad() {
 
   const CLIENT_ID = '235370693851-sctgf3t32m6df955d28g898itm97165d.apps.googleusercontent.com';
   const API_KEY = 'AIzaSyDENRe8RAK0ZhuZT9f0VQgSqG3o0ybuf5c';
-  const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
-  const SCOPES = "https://www.googleapis.com/auth/calendar";
+  const DISCOVERY_DOCS = [
+    "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest",
+    "https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest"
+  ];
+  const SCOPES =
+    "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks";
 
   gapi.load('client:auth2', () => {
     gapi.client.init({
