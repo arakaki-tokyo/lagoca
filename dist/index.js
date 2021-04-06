@@ -3,6 +3,7 @@
 const TRUE = 1;
 const FALSE = 0;
 const ONEDAY_MS = 1000 * 60 * 60 * 24;
+const ALL_TASK_LISTID = (id) => IDBKeyRange.bound([id, -1 * Date.now()], [id, Infinity]);
 /**
  * データストア
  * @class Store
@@ -57,7 +58,8 @@ const storeKeys = {
   notice: "notice",
   doneActList: "doneActList",
   sw: "sw",
-  toBeStartedAct: "toBeStartedAct"
+  toBeStartedAct: "toBeStartedAct",
+  listInserted: "listInserted"
 };
 
 /* *************************************** */
@@ -105,27 +107,62 @@ class Cron {
   }
 }
 const OSs = {
-  App: { name: "App", option: { keyPath: "key" } },
-  DoneAct: { name: "DoneAct", option: { keyPath: "start" } },
-  Routine: { name: "Routine", option: { keyPath: 'id' }, index: [{ key: "order" }] },
-  Diary: { name: "Diary", option: { keyPath: 'date' }, index: [{ key: "isSynced" }] },
+  App: {
+    name: "App",
+    option: { keyPath: "key" }
+  },
+  DoneAct: {
+    name: "DoneAct",
+    option: { keyPath: "start" }
+  },
+  Routine: {
+    name: "Routine",
+    option: { keyPath: 'id' },
+    index: [
+      { name: "order", keyPath: "order" }
+    ]
+  },
+  Diary: {
+    name: "Diary",
+    option: { keyPath: 'date' },
+    index: [
+      { name: "isSynced", keyPath: "isSynced" }
+    ]
+  },
+  TaskList: {
+    name: "TaskList",
+    option: { keyPath: 'id' },
+    index: [
+      { name: "order", keyPath: "order" }
+    ]
+  },
+  Task: {
+    name: "Task",
+    option: { keyPath: 'id' },
+    index: [
+      { name: "listId", keyPath: ["listId", "position"] },
+      { name: "parent", keyPath: "parent" }
+    ]
+  }
 };
 /** 
  * 
  * @method getAllRoutine
  * */
 const idb = new class {
-  VERSION = 1;
+  VERSION = 2;
   constructor(OSs) {
     const openRequest = indexedDB.open("logoca", this.VERSION);
     openRequest.onupgradeneeded = function (ev) {
       // initialize, or update idb
       const db = ev.target.result;
       Object.values(OSs).forEach(OS => {
+        if (db.objectStoreNames.contains(OS.name)) return;
+
         const objectStore = OS.option ?
           db.createObjectStore(OS.name, OS.option) :
           db.createObjectStore(OS.name);
-        if (OS.index) OS.index.forEach(idx => objectStore.createIndex(idx.key, idx.key));
+        if (OS.index) OS.index.forEach(idx => objectStore.createIndex(idx.name, idx.keyPath));
       })
     }
 
@@ -254,7 +291,7 @@ const idb = new class {
   getUnsyncedDiaries() {
     return this.db.then(db => {
       const req = db.transaction(OSs.Diary.name, "readonly")
-        .objectStore(OSs.Diary.name).index(OSs.Diary.index[0].key).getAll(FALSE);
+        .objectStore(OSs.Diary.name).index(OSs.Diary.index[0].keyPath).getAll(FALSE);
       return new Promise((resolve, reject) => {
         req.onsuccess = (ev) => resolve(ev.target.result);
         req.onerrors = (ev) => reject(ev);
@@ -303,6 +340,48 @@ class MyDate extends Date {
   }
 }
 
+class Enum {
+  static _created = new Map();
+  name;
+  value;
+  constructor() {
+    if (this.constructor._created.has(this.__proto__)) {
+      return;
+    } else {
+      this.constructor._created.set(this.__proto__);
+    }
+    let value = 0;
+    Object.keys(this.constructor).forEach(key => {
+
+      if (this.constructor[key]) {
+        const maybeNum = Number(this.constructor[key]);
+        if (!Number.isNaN(maybeNum)) {
+          value = Math.floor(maybeNum);
+        }
+      }
+      this.constructor[key] = new this.__proto__.constructor();
+      this.constructor[key].name = key;
+      this.constructor[key].value = value;
+      Object.freeze(this.constructor[key]);
+      value++;
+    })
+    Object.freeze(this.__proto__.constructor);
+  }
+  static [Symbol.iterator]() {
+    return Object.values(this)[Symbol.iterator]()
+  }
+
+  toString() { return this.name; }
+  isSame(obj) {
+    return obj && obj.name === this.name && obj.value === this.value;
+  }
+  isSameName(str) {
+    return str === this.name;
+  }
+  isSameValue(val) {
+    return val === this.value;
+  }
+}
 const API = new class {
   logCalendarId;
   colorId;
@@ -487,6 +566,340 @@ const API = new class {
       discription: "created by LoGoCa"
     });
   }
+
+  /**
+   *  アカウントのタスクリストをリストする
+   *
+   * @return {*} 
+   */
+  listTasklist() {
+    return gapi.client.tasks.tasklists.list();
+  }
+  /**
+   * 新しいタスクリストを挿入する
+   *
+   * @param {TaskList} taskList
+   * @return {PromiseLike} 
+   */
+  insertTaskList(taskList) {
+    return gapi.client.tasks.tasklists.insert({ resource: TaskList.toAPI(taskList) });
+  }
+  /**
+   * タスクリストを更新する
+   *
+   * @param {TaskList} taskList
+   * @return {PromiseLike} 
+   */
+  updateTaskList(taskList) {
+    return gapi.client.tasks.tasklists.update({
+      tasklist: taskList.id,
+      resource: TaskList.toAPI(taskList)
+    });
+  }
+  /**
+   * タスクリストを削除する
+   *
+   * @param {TaskList} taskList
+   * @return {PromiseLike} 
+   */
+  deleteTaskList(taskList) {
+    return gapi.client.tasks.tasklists.delete({ tasklist: taskList.id });
+  }
+
+  /**
+   *
+   *
+   * @param {String} tasklist 
+   * @return {PromiseLike} 
+   */
+  listTask(tasklist) {
+    return gapi.client.tasks.tasks.list({
+      tasklist,
+      showHidden: true
+    });
+  }
+  /**
+   * 新しいタスクを挿入する
+   *
+   * @param {Task} task
+   * @return {PromiseLike} 
+   */
+  insertTask(task) {
+    return gapi.client.tasks.tasks.insert({
+      tasklist: task.listId,
+      parent: task.parent,
+      resource: Task.toAPI(task)
+    });
+  }
+  /**
+   * タスクを更新する
+   *
+   * @param {Task} task
+   * @return {PromiseLike} 
+   */
+  updateTask(task) {
+    return gapi.client.tasks.tasks.update({
+      tasklist: task.listId,
+      task: task.id,
+      resource: Task.toAPI(task)
+    });
+  }
+  /**
+   * タスクを移動する
+   *
+   * @param {Task} task
+   * @param {String} previous
+   * @return {PromiseLike} 
+   */
+  moveTask(task, previous) {
+    return gapi.client.tasks.tasks.move({
+      tasklist: task.listId,
+      task: task.id,
+      parent: task.parent,
+      previous
+    });
+  }
+  /**
+   * タスクを削除する
+   *
+   * @param {Task} task
+   * @return {PromiseLike} 
+   */
+  deleteTask(task) {
+    return gapi.client.tasks.tasks.delete({
+      tasklist: task.listId,
+      task: task.id
+    });
+  }
+
+}
+const ToDoUtils = new class ToDoUtils {
+  isSignedIn;
+  constructor() {
+    Store.onChange(storeKeys.isSignedIn, this);
+  }
+  /**
+   * @param {object} object
+   * @param {Boolean} object.value
+   */
+  update({ key, value }) {
+    switch (key) {
+      case storeKeys.isSignedIn:
+        this.isSignedIn = value;
+        break;
+    }
+  }
+  /**
+   * タスクリストを挿入する
+   *
+   * @param {TaskList} taskList
+   * @param {Boolean} [toSync=this.isSignedIn]
+   */
+  async insertTaskList(taskList, toSync = this.isSignedIn) {
+    await idb.setTaskList(taskList);
+    if (toSync) {
+      await API.insertTaskList(taskList).then(async res => {
+        const insertedTaskList = TaskList.fromAPI(res.result);
+        await idb.setTaskList(insertedTaskList)
+          .then(() => idb.deleteTaskList(taskList.id));
+
+        const tasks = await idb.getIndexAllTask("listId", ALL_TASK_LISTID(taskList.id));
+        for (const task of tasks) {
+          await idb.updateTask(task.id, /** @param {Task} t */t => {
+            t.listId = res.result.id;
+            return t;
+          })
+        }
+        Store.set(storeKeys.listInserted, true);
+      }).then(res => console.log(res))
+    }
+  }
+  /**
+   * タスクリストを更新する
+   *
+   * @param {TaskList} taskList
+   * @param {Boolean} [toSync=this.isSignedIn]
+   */
+  async updateTaskList(taskList, toSync = this.isSignedIn) {
+    await idb.setTaskList(taskList);
+    if (toSync) {
+      await API.updateTaskList(taskList).then(async res => {
+        await idb.updateTaskList(taskList.id, () => TaskList.fromAPI(res.result))
+      })
+    }
+  }
+  /**
+   * タスクリストを削除する
+   * @param {TaskList} taskList
+   * @param {Boolean} [toSync=this.isSignedIn]
+   * @memberof ToDoUtils
+   */
+  async deleteTaskList(taskList, toSync = this.isSignedIn) {
+    const tasks = await idb.getIndexAllTask("listId", ALL_TASK_LISTID(taskList.id));
+
+    // in Google Tasks, tasks are deleted with tasklist.
+    for (const task of tasks) await idb.deleteTask(task.id);
+
+    if (toSync && !SyncAction.INSERT.isSame(taskList.action)) {
+      await idb.updateTaskList(taskList.id, /** @param {TaskList}taskList */taskList => {
+        taskList.isSynced = false;
+        taskList.action = SyncAction.DELETE;
+        taskList.updated = new Date();
+        return taskList;
+      });
+      await API.deleteTaskList(taskList).then(() => {
+        idb.deleteTaskList(taskList.id);
+      }).catch(async res => {
+        if (res.result.error.message === "Invalid Value") {
+          await idb.updateTaskList(taskList.id, /** @param {TaskList}taskList */taskList => {
+            taskList.isSynced = true;
+            taskList.action = null;
+            taskList.updated = new Date();
+            return taskList;
+          });
+          throw new Error("This is default list, so can not be deleted.");
+        }
+      });
+    } else {
+      await idb.deleteTaskList(taskList.id);
+    }
+  }
+  /**
+   * タスクを挿入する
+   *
+   * @param {Task} task
+   * @param {TaskItem} taskItem
+   */
+  async insertTask(task, taskItem) {
+    await idb.setTask(task);
+    if (this.isSignedIn) {
+      let newId;
+      await API.insertTask(task).then(async res => {
+        const newTask = Task.fromAPI(res.result);
+        newId = newTask.id;
+        newTask.listId = task.listId;
+        await idb.setTask(newTask);
+        await idb.deleteTask(task.id);
+        if (taskItem) taskItem.task = newTask;
+
+        const children = await idb.getIndexAllTask("parent", task.id);
+        for (const child of children) {
+          await idb.updateTask(child.id, task => {
+            task.parent = newTask.id;
+            return task;
+          })
+        }
+      })
+      return newId;
+    }
+  }
+  /**
+   * タスクを更新する
+   * @param {Task} updatedTask
+   * @param {Boolean} [toSync=this.isSignedIn]
+   */
+  async updateTask(updatedTask, toSync = this.isSignedIn) {
+    await idb.setTask(updatedTask);
+    if (toSync) {
+      await API.updateTask(updatedTask).then(async res => {
+        const newTask = Task.fromAPI(res.result);
+        newTask.listId = updatedTask.listId;
+        await idb.setTask(newTask);
+      })
+    }
+  }
+  /**
+   * タスクを別のリストに移動する
+   *
+   * @param {Task} from
+   * @param {Task} to
+   */
+  async transferTask(from, to) {
+    await idb.setTask(to);
+    const children = await idb.getIndexAllTask("parent", to.id);
+    const movedChildren = [];
+    for (const child of children) {
+      await idb.updateTask(child.id, t => {
+        t.isSynced = false;
+        t.listId = to.listId;
+        t.updated = new Date();
+        movedChildren.push(t);
+        return t;
+      })
+    }
+
+    if (this.isSignedIn) {
+      movedChildren.sort((a, b) => b.position - a.position); // descending order
+      await API.insertTask(to).then(async res => {
+        const newTask = Task.fromAPI(res.result);
+        newTask.listId = to.listId;
+        await idb.setTask(newTask);
+
+        const waitResult = [];
+        movedChildren.forEach(child => {
+          child.parent = newTask.id;
+          const result = API.insertTask(child).then(async res => {
+            const newChild = Task.fromAPI(res.result);
+            newChild.listId = to.listId;
+            await idb.setTask(newChild);
+          }).catch(async () => {
+            await idb.setTask(child);
+          });
+          waitResult.push(result);
+        })
+        await Promise.all(waitResult);
+        await this.deleteTask(from);
+      })
+    }
+
+  }
+  /**
+   * タスクをソートする
+   * @param {TaskItem} taskItem
+   * @param {Boolean} [toSync=this.isSignedIn]
+   */
+  async sortTask(taskItem, toSync = this.isSignedIn) {
+    if (toSync) {
+      let previous;
+      if (taskItem.previousElementSibling) { previous = taskItem.previousElementSibling.id }
+      await API.moveTask(taskItem.task, previous)
+    }
+  }
+  /**
+   * タスクを削除する
+   *
+   * @param {Task} task
+   * @param {Boolean} [toSync=this.isSignedIn]
+   */
+  async deleteTask(task, toSync = this.isSignedIn) {
+    const children = await idb.getIndexAllTask("parent", task.id);
+
+    if (toSync) {
+      // call API -- Children are deleted whith parent.
+      await API.deleteTask(task).then(async () => {
+        for (const child of children) await idb.deleteTask(child.id);
+        await idb.deleteTask(task.id);
+      }).catch(async () => {
+        await idb.updateTask(task.id, t => {
+          t.isSynced = false;
+          t.action = SyncAction.DELETE;
+          t.updated = new Date();
+          return t;
+        });
+        for (const child of children) {
+          await idb.updateTask(child.id, t => {
+            t.isSynced = false;
+            t.action = SyncAction.DELETE;
+            t.updated = new Date();
+            return t;
+          });
+        }
+      });
+    } else {
+      for (const child of children) await idb.deleteTask(child.id);
+      await idb.deleteTask(task.id);
+    }
+  }
 }
 
 /* *************************************** */
@@ -516,25 +929,44 @@ function Calendar({ id = "", summary = "" }) {
  * セッティングデータクラス
  *
  * @class Settings
- * @property {boolean} upcomingEnabled
- * @property {string} upcomingCalendarId
- * @property {string} logCalendarId
- * @property {string} colorId
+ * @property {boolean}  upcomingEnabled
+ * @property {string}   upcomingCalendarId
+ * @property {string}   logCalendarId
+ * @property {string}   colorId
+ * @property {boolean}  routineEnabled
+ * @property {boolean}  todoEnabled
+ * @property {boolean}  diaryEnabled
+ * @property {boolean}  notificationEnabled
  */
-function Settings({
-  upcomingEnabled = "",
-  upcomingCalendarId = "",
-  logCalendarId = "",
-  colorId = "",
-  diaryEnabled = "",
-  notificationEnabled = ""
-}) {
-  this.upcomingEnabled = upcomingEnabled;
-  this.upcomingCalendarId = upcomingCalendarId;
-  this.logCalendarId = logCalendarId;
-  this.colorId = colorId;
-  this.diaryEnabled = diaryEnabled;
-  this.notificationEnabled = notificationEnabled;
+class Settings {
+  upcomingEnabled;
+  upcomingCalendarId;
+  logCalendarId;
+  colorId;
+  routineEnabled;
+  todoEnabled;
+  diaryEnabled;
+  notificationEnabled;
+
+  constructor({
+    upcomingEnabled,
+    upcomingCalendarId,
+    logCalendarId,
+    colorId,
+    routineEnabled,
+    todoEnabled,
+    diaryEnabled,
+    notificationEnabled,
+  }) {
+    this.upcomingEnabled = upcomingEnabled;
+    this.upcomingCalendarId = upcomingCalendarId;
+    this.logCalendarId = logCalendarId;
+    this.colorId = colorId;
+    this.routineEnabled = routineEnabled;
+    this.todoEnabled = todoEnabled;
+    this.diaryEnabled = diaryEnabled;
+    this.notificationEnabled = notificationEnabled;
+  }
 }
 /**
  * アクションデータクラス
@@ -634,6 +1066,183 @@ class Routine {
     })
   }
 }
+
+class SyncAction extends Enum {
+  static DELETE;
+  static INSERT;
+  static UPDATE;
+} new SyncAction();
+
+class TaskList {
+  /** @type {String} */   id; // API
+  /** @type {String} */   title; // API
+  /** @type {Date} */     updated; // API
+  /** @type {Number} */   order
+  /** @type {Boolean} */  isSynced;
+  /** @type {SyncAction} */  action;
+  /** @type {Boolean} */  isPrimary;
+
+  /** 
+  * @param {object}   object
+  * @param {String}   object.id
+  * @param {String}   object.title
+  * @param {Date}     object.updated
+  * @param {Number}   object.order
+  * @param {Boolean}  [object.isSynced]
+  * @param {SyncAction}   object.action
+  * @param {Boolean}  [object.isPrimary]
+  */
+  constructor({
+    id,
+    title,
+    updated,
+    order,
+    isSynced = false,
+    action,
+    isPrimary = false
+  }) {
+    this.id = id;
+    this.title = title;
+    this.updated = updated;
+    this.order = order;
+    this.isSynced = isSynced;
+    this.action = action;
+    this.isPrimary = isPrimary;
+  }
+  static fromAPI(obj) {
+    return new TaskList({
+      id: obj.id,
+      title: obj.title,
+      updated: new Date(obj.updated),
+      isSynced: true,
+      order: Date.now()
+    })
+  }
+  static toAPI(taskList) {
+    return {
+      id: taskList.id,
+      title: taskList.title,
+    }
+  }
+  getAPIFormatted() {
+    return this.constructor.toAPI(this);
+  }
+}
+
+class TaskStatus extends Enum {
+  /** @type {TaskStatus} */ static needsAction;
+  /** @type {TaskStatus} */ static completed;
+} new TaskStatus();
+class Task {
+  /** @type {String} */     id;        // API
+  /** @type {String} */     title;     // API
+  /** @type {Date} */       updated;   // API
+  /** @type {String} */     parent;    // API
+  /** @type {Number} */     position;  // API
+  /** @type {String} */     notes;      // API
+  /** @type {TaskStatus} */ status;    // API
+  /** @type {Date} */       due;       // API
+  /** @type {Date} */       completed; // API
+  /** @type {String} */     links;      // API
+  /** @type {String} */     listId;
+  /** @type {Boolean} */    isSynced;
+  /** @type {SyncAction} */ action;
+
+  /**
+  * Creates an instance of Task.
+  * @param {object}     object
+  * @param {String}     object.id
+  * @param {String}     object.title
+  * @param {Date}       [object.updated]
+  * @param {String}     object.parent
+  * @param {Number}     object.position
+  * @param {String}     object.notes
+  * @param {TaskStatus} [object.status]
+  * @param {Date}       object.due
+  * @param {Date}       object.completed
+  * @param {String}     object.links
+  * @param {String}     object.listId
+  * @param {Boolean}    [object.isSynced]
+  * @param {SyncAction} object.action
+  * @memberof Task
+  */
+  constructor({
+    id,
+    title,
+    updated = new Date(),
+    parent,
+    position,
+    notes,
+    status = TaskStatus.needsAction,
+    due,
+    completed,
+    links,
+    listId,
+    isSynced = false,
+    action
+  }) {
+    this.id = id;
+    this.title = title;
+    this.updated = updated;
+    this.parent = parent;
+    this.position = Number(position);
+    this.notes = notes;
+    this.status = status;
+    this.due = due;
+    this.completed = completed;
+    this.links = links;
+    this.listId = listId;
+    this.isSynced = isSynced;
+    this.action = action;
+  }
+
+  static fromAPI(obj) {
+    const status = [...TaskStatus].find(s => s.name === obj.status);
+    let due;
+    if (obj.due) {
+      due = new Date(obj.due);
+      due.setHours(0, 0, 0, 0);
+    } else {
+      due = obj.due;
+    }
+    let position;
+    if (TaskStatus.completed.isSame(status)) {
+      position = new Date(obj.completed).getTime();
+    } else {
+      position = Number(obj.position);
+    }
+    return new Task({
+      id: obj.id,
+      title: obj.title,
+      updated: new Date(obj.updated),
+      parent: obj.parent,
+      position,
+      notes: obj.notes,
+      status,
+      due,
+      completed: obj.completed ? new Date(obj.completed) : undefined,
+      links: obj.links,
+      isSynced: true
+    })
+  }
+
+  static toAPI(task) {
+    const due = task.due ? new MyDate(task.due).strftime("%Y-%m-%dT00:00:00.000Z") : undefined;
+    return {
+      id: task.id,
+      title: task.title,
+      notes: task.notes,
+      status: task.status.name,
+      due
+    }
+  }
+
+  getAPIFormatted() {
+    return this.constructor.toAPI(this);
+  }
+
+
+}
 /* *************************************** */
 /*  custom elements definitions            */
 /* *************************************** */
@@ -646,12 +1255,13 @@ const $ = (id) => document.getElementById(id);
  * @class TabSwipeable
  * @extends {HTMLElement}
  */
-class TabSwipeable extends HTMLDivElement {
+class TabSwipeable extends HTMLElement {
   tabs;
   view;
   scrollHandler;
   constructor() {
     super();
+    this.style.display = "block";
     this.tabs = {};
     this.scrollHandler = this._scrollHandler.bind(this);
     Store.onChange(storeKeys.settings, this);
@@ -668,6 +1278,7 @@ class TabSwipeable extends HTMLDivElement {
     this.view = this.querySelector("#view");
     this.tabContainer = this.querySelector("#tab");
     this.view.addEventListener("scroll", this.scrollHandler);
+    window.addEventListener("resize", () => this._scrollHandler({ target: this.view }));
     // this.view.scrollLeftへの代入が機能しないため
     setTimeout(() => this.init(), 0);
   }
@@ -678,33 +1289,51 @@ class TabSwipeable extends HTMLDivElement {
   update({ key, value }) {
     switch (key) {
       case storeKeys.settings:
-        if (value.diaryEnabled) {
-          Object.values(this.tabs.page2)
-            .forEach(elm => elm.classList.remove("is-hidden"));
+        this._toggleDisplay(value.routineEnabled, this.tabs.page0);
+        this._toggleDisplay(value.diaryEnabled, this.tabs.page2);
+        this._toggleDisplay(value.todoEnabled, this.tabs.page3);
+        if (!value.todoEnabled && !value.routineEnabled && !value.diaryEnabled) {
+          // single column
+          this.setAttribute("data-column", "1");
+        } else if (
+          (value.todoEnabled && !value.routineEnabled && !value.diaryEnabled) ||
+          (!value.todoEnabled && (value.routineEnabled || value.diaryEnabled))
+        ) {
+          // 2 column
+          this.setAttribute("data-column", "2");
         } else {
-          Object.values(this.tabs.page2)
-            .forEach(elm => elm.classList.add("is-hidden"));
+          // 3 column
+          this.setAttribute("data-column", "3");
         }
+        this._scrollHandler({ target: this.view });
         break;
       case storeKeys.toBeStartedAct:
         this.tabs.page1.tab.dispatchEvent(new Event("click"));
+    }
+  }
+  _toggleDisplay(flag, page) {
+    if (flag) {
+      Object.values(page).forEach(elm => elm.classList.remove("is-hidden"));
+    } else {
+      Object.values(page).forEach(elm => elm.classList.add("is-hidden"));
     }
   }
   tabClickHandler(e) {
     e.stopPropagation();
     Object.values(this.tabs).forEach(tab => {
       if (tab.tab.contains(e.target)) {
-        tab.tab.classList.add("is-active");
-        this.view.scrollLeft += tab.page.getBoundingClientRect().x;
-      } else {
-        tab.tab.classList.remove("is-active");
+        const scrollLength = tab.page.getBoundingClientRect().x - this.view.getBoundingClientRect().x;
+        this.view.scrollLeft += scrollLength;
       }
-
     })
   }
   _scrollHandler(e) {
     e.target.removeEventListener("scroll", this.scrollHandler);
-    const activeTab = Object.values(this.tabs).find(tab => tab.page.getBoundingClientRect().x === 0);
+    const origin = this.view.getBoundingClientRect().x;
+    const activeTab = Object.values(this.tabs).find(tab => {
+      const lengthFromOrigin = Math.abs(tab.page.getBoundingClientRect().x - origin);
+      return (lengthFromOrigin < 10 && !tab.page.classList.contains("is-hidden"));
+    });
     if (activeTab) {
       Object.values(this.tabs).forEach(tab => {
         if (tab === activeTab) {
@@ -726,11 +1355,13 @@ class TabSwipeable extends HTMLDivElement {
  * - `data-action="apply"`属性：クリックされると設定を保存
  * - `data-state="logedout"`: 非ログイン状態で表示
  * - `data-state="signedin"`: ログイン状態で表示
- * - `data-role="upcoming_enabled"`: 予定の取得を有効化チェックボックス
- * - `data-role="upcoming_calendar_id"`: 予定を取得するカレンダーセレクトボックス
- * - `data-role="log_calendar_id"`: ログを記録するカレンダーセレクトボックス
- * - `data-role="color_id"`: イベントカラーラジオボタン
- * - `data-role="diary_enabled"`: diaryを有効化チェックボックス
+ * - `data-role="upcomingEnabled"`: 予定の取得を有効化チェックボックス
+ * - `data-role="upcomingCalendar_id"`: 予定を取得するカレンダーセレクトボックス
+ * - `data-role="logCalendar_id"`: ログを記録するカレンダーセレクトボックス
+ * - `data-role="colorId"`: イベントカラーラジオボタン
+ * - `data-role="routineEnabled"`: routineを有効化チェックボックス
+ * - `data-role="todoEnabled"`: todoリストを有効化チェックボックス
+ * - `data-role="diaryEnabled"`: diaryを有効化チェックボックス
  * 
  * 
  * @class SettingsModal
@@ -755,38 +1386,15 @@ class SettingsModal extends HTMLElement {
   }
   connectedCallback() {
     this.querySelectorAll("[data-role]").forEach(elm => {
-      switch (elm.dataset.role) {
-        case "upcoming_enabled":
-          this.upcomingEnabled = elm;
-          break;
-        case "upcoming_calendar_id":
-          this.upcomingCalendarId = elm;
-          break;
-        case "log_calendar_id":
-          this.logCalendarId = elm;
-          break;
-        case "color_id":
-          this.colorId = elm;
-          break;
-        case "diary_enabled":
-          this.diaryEnabled = elm;
-          break;
-        case "notification_enabled":
-          this.notificationEnabled = elm;
-          break;
-        default:
-      }
-    });
-    this.addEventListener("click", (ev) => {
-      if ("role" in ev.target.dataset) {
-        if (ev.target == this.upcomingEnabled) {
-          this.upcomingCalendarId.disabled = !this.upcomingEnabled.checked;
-        }
-      }
-      else if ("action" in ev.target.dataset) {
-        this[ev.target.dataset.action](ev);
-      }
+      this[`${elm.dataset.role}`] = elm;
     })
+    this.querySelectorAll("[data-action]").forEach(elm => {
+      elm.addEventListener("click", this[`${elm.dataset.action}`].bind(this))
+    })
+    this.upcomingEnabled.addEventListener("click", e => {
+      this.upcomingCalendarId.disabled = !e.target.checked;
+    }
+    )
   }
   update({ key, value }) {
     switch (key) {
@@ -843,6 +1451,8 @@ class SettingsModal extends HTMLElement {
       upcomingCalendarId: this.upcomingCalendarId.value,
       logCalendarId: this.logCalendarId.value,
       colorId: this.colorId.value,
+      routineEnabled: this.routineEnabled.checked,
+      todoEnabled: this.todoEnabled.checked,
       diaryEnabled: this.diaryEnabled.checked,
       notificationEnabled: this.notificationEnabled.checked
     });
@@ -855,6 +1465,8 @@ class SettingsModal extends HTMLElement {
     this.upcomingCalendarId.disabled = !settings.upcomingEnabled;
     this.logCalendarId.value = settings.logCalendarId;
     this.colorId.value = settings.colorId;
+    this.routineEnabled.checked = settings.routineEnabled;
+    this.todoEnabled.checked = settings.todoEnabled;
     this.diaryEnabled.checked = settings.diaryEnabled;
     this.notificationEnabled.checked = settings.notificationEnabled;
   }
@@ -1853,9 +2465,7 @@ class ToolTip extends HTMLElement {
     <style>
       g{stroke-width: 0;fill: currentColor;}
       #tip{
-        position: absolute;
-        top: 0.5rem;
-        left: 1rem;
+        position: fixed;
         background: black;
         color: white;
         font-size: 11px;
@@ -1884,13 +2494,14 @@ class ToolTip extends HTMLElement {
     this.hide = this._hide.bind(this);
   }
   show(e) {
-    e.stopPropagation();
+    this.tip.style.left = `${this.getBoundingClientRect().x + 16}px`;
+    this.tip.style.top = `${this.getBoundingClientRect().y + 16}px`;
     const marginRight = window.innerWidth - (this.getBoundingClientRect().x + 270);
     if (marginRight < 0) {
       this.tip.style.transform = `translateX(${marginRight}px)`;
     }
     this.removeEventListener("click", this.show);
-    document.addEventListener("click", this.hide);
+    setTimeout(() => document.addEventListener("click", this.hide), 0);
     this.tip.style.display = "block";
   }
   _hide() {
@@ -2131,11 +2742,12 @@ class RoutineContainer extends HTMLDivElement {
     this.addEventListener("click", e => {
       const target = e.target.closest("[data-action]");
       if (target && this[target.dataset.action]) {
-        this[target.dataset.action](target);
+        this[target.dataset.action](target.closest(".routine_item"));
       }
     })
     this._init();
     this.modal.addEventListener("update", this.routineUpdateHandler.bind(this));
+    this.modal.addEventListener("delete", () => this.delete(this.editingRoutineItem));
   }
   _init() {
     new Sortable(this.container, {
@@ -2158,14 +2770,13 @@ class RoutineContainer extends HTMLDivElement {
   }
   renderContents(routine) {
     const li = document.createElement("li");
-    li.classList.add("is-flex", "routine_item");
-    li.setAttribute("data-key", routine.id);
+    li.classList.add("is-flex", "routine_item", "box", "p-0");
+    li.id = routine.id;
     li.innerHTML = `
-      <div class="routine_details"><span class="button sortable-handle"><svg class="icon"><use xlink:href="#icon-arrows-v"></use></svg></span></div>
-      <div class="routine_details"><svg data-key="${routine.id}" data-action="start" class="icon has-text-primary is-clickable"><use xlink:href="#icon-play-outline"></use></svg></div>
+      <div class="routine_details sortable-handle"><span class="button"><svg class="icon"><use xlink:href="#icon-arrows-v"></use></svg></span></div>
+      <div class="routine_details"><button class="button" data-action="start"><svg class="icon has-text-primary is-clickable"><use xlink:href="#icon-play-outline"></use></svg></button></div>
       <div class="routine_details has-text-weight-bold is-size-7 routine_summary"><span ${routine.color ? 'style="background: linear-gradient(transparent 60% , ' + routine.color.value + ', transparent 110%);"' : ""}>${routine.summary}</span></div>
-      <div class="routine_details"><svg data-key="${routine.id}" data-action="edit" class="icon has-text-danger-dark is-clickable"><use xlink:href="#icon-pencil"></use></svg></div>
-      <div class="routine_details"><button data-key="${routine.id}" data-action="delete" class="delete"></button></div>
+      <div class="routine_details"><button class="button" data-action="edit"><svg class="icon has-text-danger-dark is-clickable"><use xlink:href="#icon-pencil"></use></svg></button></div>
     `;
     return li;
   }
@@ -2173,7 +2784,7 @@ class RoutineContainer extends HTMLDivElement {
     if (this.routineList.length === this.editingRoutine.order) {
       this.container.appendChild(this.renderContents(this.editingRoutine));
     } else {
-      this.container.children[this.editingRoutine.order].innerHTML = this.renderContents(this.editingRoutine).innerHTML;
+      this.editingRoutineItem.innerHTML = this.renderContents(this.editingRoutine).innerHTML;
     }
     this.updateRoutineList();
   }
@@ -2184,7 +2795,7 @@ class RoutineContainer extends HTMLDivElement {
     let queue = Promise.resolve();
     [...this.container.children].forEach((li, idx) => {
       queue = queue.then(() => {
-        return idb.updateRoutine(Number(li.dataset.key), routine => {
+        return idb.updateRoutine(Number(li.id), routine => {
           routine.order = idx;
           return routine;
         })
@@ -2192,26 +2803,27 @@ class RoutineContainer extends HTMLDivElement {
     })
     queue.then(() => this.updateRoutineList());
   }
-  open(target) {
+  open(routineItem) {
     this.editingRoutine = new Routine({ order: this.routineList.length });
-    this.modal.open(this.editingRoutine);
+    this.modal.open(this.editingRoutine, false);
   }
-  edit(target) {
-    this.editingRoutine = this.routineList.find(routine => routine.id === Number(target.dataset.key));
-    this.modal.open(this.editingRoutine);
+  edit(routineItem) {
+    this.editingRoutineItem = routineItem;
+    this.editingRoutine = this.routineList.find(routine => routine.id === Number(routineItem.id));
+    this.modal.open(this.editingRoutine, true);
   }
-  delete(target) {
-    target.closest("li").remove();
+  delete(routineItem) {
+    routineItem.remove();
 
-    idb.deleteRoutine(Number(target.dataset.key))
+    idb.deleteRoutine(Number(routineItem.id))
       .then(() => {
         this.updateRoutineOrder();
       });
   }
-  start(target) {
+  start(routineItem) {
     if (this.doingAct) return;
 
-    const startRoutine = this.routineList.find(routine => routine.id === Number(target.dataset.key));
+    const startRoutine = this.routineList.find(routine => routine.id === Number(routineItem.id));
     Store.set(storeKeys.toBeStartedAct, new Routine(startRoutine).getAct());
     Store.set(storeKeys.summaryToView, startRoutine.summary);
     Store.set(storeKeys.descriptionToView, startRoutine.description);
@@ -2222,7 +2834,8 @@ class RoutineContainer extends HTMLDivElement {
  * Routineページのモーダル
  * - `data-action="close"`属性：クリックされるとモーダルを閉じる
  * - `data-action="apply"`属性：クリックされると設定を保存
- * - `data-role="title"`属性：モーダルのヘッダー
+ * - `data-action="delete"`属性：クリックされると現在のルーティンを削除
+ * - `data-role="modalTitle"`属性：モーダルのヘッダー
  * - `data-role="summary"`属性：ルーティンのサマリー
  * - `data-role="description"`属性：ルーティンの詳細
  * - `data-role="color"`属性：ルーティンのイベントカラー
@@ -2239,10 +2852,17 @@ class RoutineModal extends HTMLElement {
     });
     this.samecolor.addEventListener("change", this._samecolorOnChange.bind(this));
     this.querySelectorAll("[data-action]").forEach(elm => {
-      elm.addEventListener("click", this[`_${elm.dataset.action}`].bind(this))
+      elm.addEventListener("click", this[`_${elm.dataset.action}`].bind(this));
     })
   }
-  open(routine) {
+  open(routine, isEdit) {
+    if (isEdit) {
+      this.modalTitle.innerHTML = "編集";
+      this.deleteButton.style.display = "initial";
+    } else {
+      this.modalTitle.innerHTML = "新しいRoutine";
+      this.deleteButton.style.display = "none";
+    }
     this.editingRoutine = routine;
     this.classList.add("is-active");
     this.summary.value = routine.summary;
@@ -2260,8 +2880,12 @@ class RoutineModal extends HTMLElement {
     this.color.disabled = e.target.checked;
   }
   _close(e) {
-    e.stopPropagation();
     this.classList.remove("is-active");
+  }
+  _delete(e) {
+    e.stopPropagation();
+    this.dispatchEvent(new Event("delete"));
+    this._close();
   }
   _apply(e) {
     e.stopPropagation();
@@ -2280,133 +2904,1361 @@ class RoutineModal extends HTMLElement {
     this.classList.remove("is-active");
   }
 }
+/**
+ * todoのコンテナ
+ * data-role="selectList"
+ * data-role="tasks"
+ * @class ToDoContainer
+ * @extends {HTMLDivElement}
+ */
+class ToDoContainer extends HTMLDivElement {
+  toDolists;
+  constructor() {
+    super();
+    this.toDoLists = new Map();
+  }
+  connectedCallback() {
+    Store.onChange(storeKeys.isSignedIn, this);
 
+    this.querySelectorAll("[data-role]").forEach(elm => {
+      this[elm.dataset.role] = elm;
+    })
+    this.selectList.addEventListener("selectlist", this._selectListHandler.bind(this));
+  }
+  update({ key, value }) {
+    if (value) {
+      this.synchronize();
+    }
+  }
+  async synchronize() {
+    const res = await API.listTasklist();
+    console.log(res);
 
-const customTags = {
-  TabSwipeable: {
-    custom: "div",
-    name: "tab-swipeable",
-    class: TabSwipeable
-  },
-  SettingsModal: {
-    name: "settings-modal",
-    class: SettingsModal
-  },
-  SettingsModalOpen: {
-    name: "modal-open",
-    class: SettingsModalOpen
-  },
-  UserImg: {
-    custom: "img",
-    name: "user-img",
-    class: UserImg
-  },
-  UserEmail: {
-    name: "user-email",
-    class: UserEmail
-  },
-  SelectCalendar: {
-    custom: "select",
-    name: "select-cal",
-    class: SelectCalendar
-  },
-  SelectLogCalendar: {
-    custom: "select",
-    name: "select-log",
-    class: SelectLogCalendar
-  },
-  NewCalendar: {
-    custom: "input",
-    name: "new-cal",
-    class: NewCalendar
-  },
-  AddCalendar: {
-    custom: "button",
-    name: "add-cal",
-    class: AddCalendar
-  },
-  EventColor: {
-    name: "eve-col",
-    class: EventColor
-  },
-  NotificationCheck: {
-    custom: "input",
-    name: "notification-check",
-    class: NotificationCheck
-  },
-  Summary: {
-    custom: "input",
-    name: "act-summary",
-    class: Summary
-  },
-  Description: {
-    name: "act-description",
-    class: Description
-  },
-  ActStart: {
-    custom: "button",
-    name: "act-start",
-    class: ActStart
-  },
-  ActEnd: {
-    custom: "button",
-    name: "act-end",
-    class: ActEnd
-  },
-  TimeElapsed: {
-    name: "time-elapsed",
-    class: TimeElapsed
-  },
-  NoticeShow: {
-    name: "notice-show",
-    class: NoticeShow
-  },
-  DoneAct: {
-    name: "done-act",
-    class: DoneAct
-  },
-  DoneActList: {
-    name: "done-act-list",
-    class: DoneActList
-  },
-  UpcomingAct: {
-    name: "upcoming-act",
-    class: UpcomingAct
-  },
-  UpcomingActList: {
-    name: "upcoming-act-list",
-    class: UpcomingActList
-  },
-  ToolTip: {
-    name: "tool-tip",
-    class: ToolTip
-  },
-  QuillCommon: {
-    name: "quill-common",
-    class: QuillCommon
-  },
-  DiaryNav: {
-    name: "diary-nav",
-    class: DiaryNav
-  },
-  DiaryContainer: {
-    custom: "div",
-    name: "diary-container",
-    class: DiaryContainer
-  },
-  RoutineContainer: {
-    custom: "div",
-    name: "routine-container",
-    class: RoutineContainer
-  },
-  RoutineModal: {
-    name: "routine-modal",
-    class: RoutineModal
-  },
+    /** @type {Array<TaskList>} */const cloudTaskLists = [];
+    res.result.items.forEach(item => {
+      const taskList = TaskList.fromAPI(item);
+      cloudTaskLists.push(taskList);
+    })
+    cloudTaskLists.sort((a, b) => a.id < b.id ? -1 : 1);
+
+    /** @type {Array<TaskList>} */const localTaskLists = await idb.getAllTaskList();
+    let iCloudList = 0;
+    let iLocalList = 0;
+    const waitResult = [];
+    let syncCase;
+    const sameIdExsist = 0;
+    const onlyCloud = 1;
+    const onlyLocal = 2;
+    do {
+      const cTaskList = cloudTaskLists[iCloudList];
+      const lTaskList = localTaskLists[iLocalList];
+
+      if (!cTaskList) { syncCase = onlyLocal }
+      else if (!lTaskList) { syncCase = onlyCloud }
+      else if (cTaskList.id > lTaskList.id) { syncCase = onlyLocal }
+      else if (cTaskList.id < lTaskList.id) { syncCase = onlyCloud }
+      else if (cTaskList.id === lTaskList.id) { syncCase = sameIdExsist }
+
+      switch (syncCase) {
+        case sameIdExsist:
+          // sync proc
+          waitResult.push(this._syncTaskList(cTaskList, lTaskList));
+          iCloudList++;
+          iLocalList++;
+          break;
+
+        case onlyCloud:
+          // add local
+          waitResult.push(idb.setTaskList(cTaskList));
+          iCloudList++;
+          break;
+
+        case onlyLocal:
+          if (SyncAction.INSERT.isSame(lTaskList.action)) {
+            // insert cloud
+            waitResult.push(ToDoUtils.insertTaskList(lTaskList));
+          } else {
+            // remove local
+            waitResult.push(ToDoUtils.deleteTaskList(lTaskList, false));
+          }
+          iLocalList++;
+          break;
+        default:
+      }
+    } while (iCloudList < cloudTaskLists.length || iLocalList < localTaskLists.length);
+    console.log("taskList check done.");
+    await Promise.all(waitResult);
+    console.log("taskList proc done.");
+
+    // tasks synchronize
+    const latestTaskLists = await idb.getAllTaskList();
+    const cloudTasks = [];
+    for (const taskList of latestTaskLists) {
+      const result = API.listTask(taskList.id).then(res => {
+        if (res.result.items)
+          res.result.items.forEach(item => {
+            const task = Task.fromAPI(item);
+            task.listId = taskList.id;
+            cloudTasks.push(task);
+          });
+      });
+      waitResult.push(result);
+    }
+
+    const localTaskFamilies = this._makeFamily(await idb.getAllTask());
+    await Promise.all(waitResult);
+    const cloudTaskFamilies = this._makeFamily(cloudTasks);
+    console.log("getting all task done.");
+    console.dir('cloudTaskFamilies: ', cloudTasks);
+
+    await this._verifyTasks(cloudTaskFamilies, localTaskFamilies);
+
+    console.log("task proc done.")
+    this.selectList.init();
+  }
+
+  /**
+   * @param {Array<Task>} cloudTasks
+   * @param {Array<Task>} localTasks
+   * @memberof ToDoContainer
+   */
+  async _verifyTasks(cloudTasks, localTasks) {
+    const waitResult = [];
+    let iCloudTask = 0;
+    let iLocalTask = 0;
+    let syncCase;
+    const sameIdExsist = 0;
+    const onlyCloud = 1;
+    const onlyLocal = 2;
+
+    do {
+      const cTask = cloudTasks[iCloudTask];
+      const lTask = localTasks[iLocalTask];
+
+      if (!cTask) { syncCase = onlyLocal }
+      else if (!lTask) { syncCase = onlyCloud }
+      else if (cTask.id > lTask.id) { syncCase = onlyLocal }
+      else if (cTask.id < lTask.id) { syncCase = onlyCloud }
+      else if (cTask.id === lTask.id) { syncCase = sameIdExsist }
+
+      switch (syncCase) {
+        case sameIdExsist:
+          // sync proc
+          waitResult.push(this._syncTask(cTask, lTask));
+
+          iCloudTask++;
+          iLocalTask++;
+          break;
+
+        case onlyCloud:
+          // add local
+          if (cTask.children) {
+            for (const child of cTask.children) {
+              waitResult.push(idb.setTask(child));
+            }
+            delete cTask.children;
+          }
+          waitResult.push(idb.setTask(cTask));
+          iCloudTask++;
+          break;
+
+        case onlyLocal:
+          if (SyncAction.INSERT.isSame(lTask.action)) {
+            // insert cloud
+            const newId = await ToDoUtils.insertTask(lTask);
+            if (lTask.children) {
+              for (const child of lTask.children) {
+                child.parent = newId;
+                waitResult.push(ToDoUtils.insertTask(child));
+              }
+            }
+          } else {
+            // remove local
+            waitResult.push(ToDoUtils.deleteTask(lTask, false));
+          }
+          iLocalTask++;
+          break;
+        default:
+      }
+    } while (iCloudTask < cloudTasks.length || iLocalTask < localTasks.length);
+
+    await Promise.all(waitResult);
+  }
+  /**
+   *
+   *
+   * @param {TaskList} cTaskList
+   * @param {TaskList} lTaskList
+   * @memberof ToDoContainer
+   */
+  async _syncTaskList(cTaskList, lTaskList) {
+    if (SyncAction.DELETE.isSame(lTaskList.action)) {
+      await API.deleteTaskList(cTaskList).then(async () => {
+        await idb.deleteTaskList(lTaskList.id);
+      });
+    } else if (cTaskList.updated.getTime() === lTaskList.updated.getTime()) {
+      // do nothing
+    } else if (cTaskList.updated.getTime() > lTaskList.updated.getTime()) {
+      await idb.setTaskList(cTaskList);
+    } else {
+      await API.updateTaskList(lTaskList).then(async res => {
+
+        await idb.updateTaskList(lTaskList.id, /** @param {TaskList}taskList */taskList => {
+          taskList.isSynced = true;
+          taskList.action = null;
+          taskList.updated = new Date(res.result.updated);
+          return taskList;
+        });
+      })
+    }
+  }
+  /**
+   *
+   *
+   * @param {Task} cTask
+   * @param {Task} lTask
+   * @memberof ToDoContainer
+   */
+  async _syncTask(cTask, lTask) {
+    if (cTask.listId !== lTask.listId && cTask.updated.getTime() < lTask.updated.getTime()) {
+      await ToDoUtils.transferTask(cTask, lTask);
+    } else if (SyncAction.DELETE.isSame(lTask.action)) {
+      await ToDoUtils.deleteTask(lTask);
+    } else {
+      if (cTask.children || lTask.children) {
+        await this._verifyTasks(cTask.children ? cTask.children : [], lTask.children ? lTask.children : []);
+        delete cTask.children;
+        delete lTask.children;
+      }
+      if (cTask.updated.getTime() >= lTask.updated.getTime()) {
+        await idb.setTask(cTask);
+      } else {
+        await ToDoUtils.updateTask(lTask);
+      }
+    }
+  }
+
+  _makeFamily(tasks) {
+    const retList = [];
+    const lostChildren = [];
+    tasks.forEach(task => {
+      if (task.parent) {
+        lostChildren.push(task);
+      } else {
+        retList.push({ ...task });
+      }
+    })
+    lostChildren.forEach(child => {
+      const parent = retList.find(task => task.id === child.parent);
+      if (parent) {
+        if (!parent.children) parent.children = [];
+        parent.children.push({ ...child });
+      } else {
+        delete child.parent;
+        retList.push({ ...child });
+      }
+    })
+    retList.sort((a, b) => a.id < b.id ? -1 : 1);
+    retList.forEach(task => { if (task.children) task.children.sort((a, b) => a.id < b.id ? -1 : 1) });
+
+    return retList;
+  }
+  _selectListHandler(e) {
+    this.tasks.show(e.detail);
+  }
+}
+/**
+ * todoリストのセレクトボックス
+ * 
+ * - `data-action="open"`: 
+ * - `data-action="select"`: 
+ * - `data-action="addList"`: 
+ * - `data-role="sentinel"`: 
+ * - `data-role="currentListName"`: 
+ * - `data-role="modal"`: 
+ * - `data-role="sortable`"
+ *
+ * @class SelectToDoList
+ * @extends {HTMLElement}
+ */
+class SelectTaskList extends HTMLElement {
+  _selectedTaskListItem;
+  _selectedTaskListId;
+  constructor() {
+    super();
+    this.close = this._close.bind(this);
+  }
+  connectedCallback() {
+    Store.onChange(storeKeys.listInserted, this);
+
+    this.classList.add("dropdown");
+    this.innerHTML = `
+      <div data-action="open" class="dropdown-trigger">
+        <button class="button">
+          <span data-role="currentListName" style="overflow: hidden;"></span>
+          <span class="icon is-small" style="flex-shrink: 0;">
+            <svg width="12" height="12"><use xlink:href="#icon-chevron-down"></use></svg>
+          </span>
+        </button>
+      </div>
+      <div class="dropdown-menu override">
+        <div data-role="sortable" class="dropdown-content">
+          <hr data-role="sentinel" class="dropdown-divider">
+          <a data-action="addList" class="dropdown-item">新しいリストを作成</a>
+        </div>
+      </div>
+      <tasklist-modal data-role="modal"></tasklist-modal>
+    `;
+    this.querySelectorAll("[data-role]").forEach(elm => {
+      this[elm.dataset.role] = elm;
+    })
+    this.addEventListener("click", e => {
+      const target = e.target.closest("[data-action]");
+      if (target && this[`_${target.dataset.action}`]) {
+        this[`_${target.dataset.action}`](e, target);
+      }
+    });
+    this.init();
+    this.addEventListener("tasklistedit", e => this.modal.open(e.target));
+    this.addEventListener("tasklistdelete", this._taskListDeleteHandler.bind(this));
+    this.modal.addEventListener("modaladd", this._modalAddHandler.bind(this));
+    this.modal.addEventListener("modaledit", () => this._updateCurrentListName());
+
+    new Sortable(this.sortable, {
+      animation: 150,
+      draggable: ".sortable_item",
+      onUpdate: evt => this._updateOrder()
+    });
+  }
+  update({ key, value }) {
+    switch (key) {
+      case storeKeys.listInserted:
+        this.init();
+    }
+  }
+  _noItemView(flag) {
+    if (flag) {
+      this.classList.add("no_item");
+      this.currentListName.innerHTML = "ここから新しいリスト作りましょう";
+    } else {
+      this.classList.remove("no_item");
+    }
+  }
+  async init() {
+    const taskListsList = await idb.getIndexAllTaskList("order");
+
+    this.render(taskListsList);
+    if (this.sortable.querySelectorAll("tasklist-item").length === 0) {
+      this._noItemView(true);
+    } else {
+      this._noItemView(false);
+      if (!this._selectedTaskListItem) {
+        this.sortable.firstElementChild.dispatchEvent(new Event("click", { "bubbles": true }));
+      }
+    }
+  }
+  render(taskLists) {
+    this._selectedTaskListItem = null;
+    this.sortable.querySelectorAll("tasklist-item").forEach(taskListItem => taskListItem.remove());
+
+    taskLists.forEach(taskList => {
+      if (SyncAction.DELETE.isSame(taskList.action)) {
+        return;
+      } else if (this._selectedTaskListId === taskList.id || this.currentListName.innerHTML === taskList.title) {
+        const selected = this._renderList(taskList, true);
+        selected.dispatchEvent(new Event("click", { "bubbles": true }));
+      } else {
+        this._renderList(taskList, false);
+      }
+    });
+  }
+  _renderList(taskList, isActive) {
+    if (isActive) this.currentListName.innerHTML = taskList.title;
+    const taskListItem = document.createElement("tasklist-item");
+    taskListItem.init(taskList);
+    if (isActive) taskListItem.activate();
+    this.sentinel.insertAdjacentElement('beforebegin', taskListItem);
+    return taskListItem;
+  }
+  _open(e) {
+    if (this.classList.toggle("is-active")) {
+      setTimeout(() => document.addEventListener("click", this.close), 0);
+    }
+  }
+  _close() {
+    this.classList.remove("is-active");
+    document.removeEventListener("click", this.close);
+  }
+  _updateOrder() {
+    this.sortable.querySelectorAll(".sortable_item").forEach((tli, idx) => {
+      idb.updateTaskList(tli.id, tl => {
+        tl.order = idx;
+        return tl;
+      })
+    })
+  }
+  _addList() {
+    this.modal.open();
+  }
+  _select(e, target) {
+    this.querySelectorAll("tasklist-item").forEach(taskListItem => taskListItem.deactivate());
+    target.activate();
+    this._selectedTaskListItem = target;
+    this._updateCurrentListName();
+    this._selectedTaskListId = target.id;
+
+    this.dispatchEvent(new CustomEvent("selectlist", { detail: target }));
+  }
+  _updateCurrentListName() {
+    this.currentListName.innerHTML = this._selectedTaskListItem.taskList.title;
+  }
+  _modalAddHandler(e) {
+    this._noItemView(false);
+    this._renderList(e.detail).dispatchEvent(new Event("click", { "bubbles": true }));
+    this._updateOrder();
+  }
+  _taskListDeleteHandler(e) {
+    const toActivateList = e.target.previousElementSibling ?
+      e.target.previousElementSibling :
+      e.target.nextElementSibling;
+    if (toActivateList === this.sentinel) {
+      this._noItemView(true);
+      this.dispatchEvent(new CustomEvent("selectlist", { detail: null }));
+    } else {
+      if (e.target.classList.contains("is-active")) {
+        toActivateList.dispatchEvent(new Event("click", { "bubbles": true }));
+      }
+    }
+    e.target.remove();
+  }
+  get value() { return this._selectedTaskListId }
+}
+
+class TaskListItem extends HTMLElement {
+  /** @type {TaskList} */  taskList;
+  /**
+   * @param {TaskList} taskList
+   * @memberof TaskListItem
+   */
+  init(taskList) {
+    this.taskList = taskList;
+    this.id = taskList.id;
+    this.title = taskList.title;
+    this.setAttribute("data-action", "select");
+    this.classList.add("dropdown-item", "sortable_item")
+    this.innerHTML = `
+      <span data-action="edit" class="button"><svg class="icon has-text-danger-dark is-clickable"><use xlink:href="#icon-pencil"></use></svg></span>
+      <span data-role="listTitle">${taskList.title}</span>
+      ${taskList.isPrimary ? "" : '<span class="delete" data-action="delete"></span>'}
+    `;
+
+    this.querySelectorAll("[data-role]").forEach(elm => {
+      this[elm.dataset.role] = elm;
+    });
+
+    this.querySelectorAll("[data-action]").forEach(elm => {
+      elm.addEventListener("click", this[`_${elm.dataset.action}`].bind(this))
+    });
+  }
+  activate() { this.classList.add("is-active") }
+  deactivate() { this.classList.remove("is-active") }
+  update(taskList) {
+    this.taskList = taskList;
+    ToDoUtils.updateTaskList(taskList);
+    this.title = this.listTitle.innerHTML = taskList.title;
+  }
+  _edit(e) {
+    this.dispatchEvent(new CustomEvent("tasklistedit", { bubbles: true }));
+  }
+  async _delete(e) {
+    try {
+      await ToDoUtils.deleteTaskList(this.taskList);
+    } catch (e) {
+      console.log(e);
+      return;
+    }
+    this.dispatchEvent(new CustomEvent("tasklistdelete", { bubbles: true }));
+
+  }
+}
+
+/**
+ * taskListのモーダル
+ * - `data-action="close"`属性：クリックされるとモーダルを閉じる
+ * - `data-action="apply"`属性：クリックされると設定を保存
+ * - `data-role="header"`属性：モーダルのヘッダー
+ * - `data-role="listTitle"`属性：taskListのタイトル
+ *
+ * @class TaskListModal
+ * @extends {HTMLElement}
+ */
+class TaskListModal extends HTMLElement {
+  connectedCallback() {
+    this.classList.add("modal");
+    this.innerHTML = `
+        <div data-action="close" class="modal-background"></div>
+        <div class="modal-card" style="width: 300px">
+          <header class="modal-card-head p-3">
+            <p data-role="header" class="modal-card-title is-size-6"></p>
+            <button data-action="close" class="delete" aria-label="close"></button>
+          </header>
+          <section class="modal-card-body">
+            <input type="text" data-role="listTitle" class="input" placeholder="title">
+          </section>
+          <footer class="modal-card-foot">
+            <button data-action="apply" class="button is-link">保存</button>
+            <button data-action="close" class="button is-link is-light">キャンセル</button>
+          </footer>
+        </div>
+      `;
+    this.querySelectorAll("[data-role]").forEach(elm => {
+      this[elm.dataset.role] = elm;
+    });
+    this.querySelectorAll("[data-action]").forEach(elm => {
+      elm.addEventListener("click", this[`_${elm.dataset.action}`].bind(this))
+    });
+    this.addEventListener("click", e => e.stopPropagation());
+  }
+  /**
+   * @param {TaskListItem} taskListItem
+   * @memberof TaskListModal
+   */
+  open(taskListItem) {
+    this.classList.add("is-active");
+    this.listTitle.focus();
+    if (taskListItem) {
+      this.editingTaskListItem = taskListItem;
+      this.editingTaskList = { ...taskListItem.taskList };
+      this.header.innerHTML = "名前の変更";
+      this.listTitle.value = taskListItem.taskList.title;
+    } else {
+      this.header.innerHTML = "新規作成";
+      this.editingTaskList = new TaskList({});
+    }
+  }
+  _close() {
+    this.classList.remove("is-active");
+    this.listTitle.value = "";
+  }
+  async _apply() {
+    this.editingTaskList.isSynced = false;
+    this.editingTaskList.action = SyncAction.UPDATE;
+    this.editingTaskList.title = this.listTitle.value;
+    this.editingTaskList.updated = new Date();
+    if (this.editingTaskListItem) {
+      this.editingTaskListItem.update(this.editingTaskList);
+      delete this.editingTaskListItem;
+      this.dispatchEvent(new CustomEvent("modaledit"));
+    } else {
+      this.editingTaskList.id = Date.now().toString();
+      this.editingTaskList.action = SyncAction.INSERT;
+      ToDoUtils.insertTaskList(this.editingTaskList);
+      this.dispatchEvent(new CustomEvent("modaladd", { detail: this.editingTaskList }));
+    }
+    this._close();
+  }
+}
+
+/**
+ * - `data-role="mainArea"`
+ * - `data-role="subTasks"`
+ * - `data-role="subTaskItemList"`
+ * - `data-role="newSubTaskTitle"`
+ * - `data-role="start"`: start button
+ * - `data-role="radio"`
+ * - `data-role="complete"`
+ * - `data-action="view"`
+ * - `data-action="start"`
+ * - `data-action="edit"`
+ * - `data-action="delete"`
+ * - `data-action="complete"`
+ * - `data-action="subAdd"`
+ *
+ * @class TaskItem
+ * @extends {HTMLElement}
+ */
+class TaskItem extends HTMLElement {
+  /** @type {Task} */   _task;
+  /** @type {Number} */ DURATION = 100;
+  set task(task) {
+    this._task = task;
+    this.id = task.id;
+  }
+  get task() { return this._task; }
+  init(task) {
+    this.classList.add("p-0", "task_item", task.parent ? "sub" : "parent");
+    this.style.display = "block";
+
+    this.task = task;
+    this.innerHTML = this._render(task);
+    this._updateContent();
+
+    this.querySelectorAll("[data-role]").forEach(elm => {
+      this[elm.dataset.role] = elm;
+    });
+    this.addEventListener("click", e => {
+      e.stopPropagation();
+      const target = e.target.closest("[data-action]");
+      if (target && this[`_${target.dataset.action}`]) {
+        this[`_${target.dataset.action}`](e, target);
+      }
+    });
+
+    if (!task.parent) {
+      this.classList.add("box");
+      this.complete.addEventListener("mouseenter", this._hoverHandler.bind(this));
+      this.complete.addEventListener("mouseleave", this._hoverHandler.bind(this));
+      this.subTaskItemList.addEventListener("taskincomplete", e => {
+        e.stopPropagation();
+        this.subTaskItemList.insertAdjacentElement("afterbegin", e.target);
+        this._updateOrder();
+      })
+      this.subTaskItemList.addEventListener("taskcomplete", e => {
+        e.stopPropagation();
+        this.subTaskItemList.insertAdjacentElement("beforeend", e.target);
+        this._updateOrder();
+      })
+    }
+  }
+  _render(task) {
+    return task.parent ? `
+      <div data-role="mainArea" class="is-flex"></div>
+    ` : `
+      <input type="radio" data-role="radio" name="tasks" id="radio${task.id}" hidden ${TaskStatus.completed.isSame(task.status) ? "disabled" : ""}>
+      <div data-role="mainArea" class="is-flex"></div>
+      <div data-role="subTasks">
+        <div data-role="subTaskItemList"></div>
+        <div class="field has-addons m-0">
+          <div class="control">
+            <input data-role="newSubTaskTitle" class="input" type="text" placeholder="新しいサブタスク">
+          </div>
+          <div class="control">
+            <button data-action="subAdd" class="button is-info">追加</button>
+          </div>
+        </div>
+      </div>
+    `
+  }
+  _renderMain(task) {
+    const isComp = TaskStatus.completed.isSame(task.status);
+    const fontColor = isComp ?
+      "is-link" :
+      task.due ?
+        task.due - Date.now() < ONEDAY_MS ?
+          "is-danger" :
+          task.due - Date.now() < 3 * ONEDAY_MS ?
+            "is-warning" :
+            "is-primary" :
+        "";
+    return `
+      ${task.parent ? "" : '<div class="task_details sortable-handle"><span class="button"><svg class="icon"><use xlink:href="#icon-arrows-v"></use></svg></span></div>'}
+      <div ${isComp ? "" : 'data-action="start"'} class="task_details"><button data-role="start" class="button" ${isComp ? "disabled" : ""}><svg class="icon has-text-primary"><use xlink:href="#icon-play-outline"></use></svg></button></div>
+      <div class="task_details task_title is-size-7"><label data-action="view" for="radio${task.id}">
+        ${task.links ?
+        `<p class="task_title_text has-text-weight-bold"><a href="${task.links[0].link}" target="_blank" rel="noreferrer">${task.title}</a></p>` :
+        `<p class="task_title_text has-text-weight-bold">${task.title}</p>`
+      }
+         ${isComp || task.due ?
+        `<div class="tags has-addons">
+          <span class="tag ${isComp ? "" : "is-light"} ${fontColor}">
+            <svg style="width:15px;height:15px"><use xlink:href="${isComp ? '#icon-check' : '#icon-calendar'}"></use></svg>
+          </span>
+         ${isComp ?
+          `<span class="tag ${fontColor} is-light">${new MyDate(task.completed).strftime("%m/%d %H:%M")}</span>` :
+          `<span class="tag ${fontColor}">${new MyDate(task.due).strftime("%m/%d")}</span>`
+        }
+       </div>`: ""}
+      </label></div>
+      ${isComp ?
+        '<div data-action="delete" class="task_details"><span class="button"><svg class="icon has-text-grey-light"><use xlink:href="#icon-trashcan"></use></svg></span></div>' :
+        '<div data-action="edit" class="task_details"><button class="button"><svg class="icon has-text-danger-dark"><use xlink:href="#icon-pencil"></use></svg></button></div>'
+      }
+      <div data-action="complete" data-role="complete" class="task_details" title="${isComp ? "未完了に戻す" : "完了とする"}"><span class="button"><svg class="icon has-text-grey-light is-clickable"><use xlink:href="#icon-check"></use></svg></span></div>
+    `
+  }
+  _subAdd(e, target) {
+    const newSubTask = new Task({
+      id: Date.now().toString(),
+      listId: this.task.listId,
+      parent: this.id,
+      title: this.newSubTaskTitle.value,
+      action: SyncAction.INSERT
+    });
+    this.newSubTaskTitle.value = "";
+    idb.setTask(newSubTask);
+    const newTaskItem = document.createElement("task-item");
+    newTaskItem.init(newSubTask);
+    ToDoUtils.insertTask(newSubTask, newTaskItem);
+    this.addSubTask(newTaskItem, 'afterbegin');
+  }
+
+  /** @param {TaskItem} taskItem   */
+  addSubTask(taskItem, position = 'beforeend') {
+    if (!this.sortableSubTask) {
+      this.sortableSubTask = new Sortable(this.subTaskItemList, {
+        animation: 150,
+        draggable: ".task_item",
+        filter: ".completed",
+        onUpdate: e => this._updateOrder(e)
+      });
+    }
+    this.subTaskItemList.insertAdjacentElement(position, taskItem);
+    taskItem._animateThis();
+    this._updateOrder();
+  }
+  async update(updatedTask) {
+    if (this.task.listId === updatedTask.listId) {
+      ToDoUtils.updateTask(updatedTask);
+      this.task = updatedTask;
+      this.mainArea.innerHTML = this._renderMain(this.task);
+    } else {
+      const res = confirm("LoGoCaでリンク付きのタスクを移動すると、リンクの情報が破棄されます。\n続行しますか？");
+      if (res) {
+        updatedTask.position = - Date.now();
+        ToDoUtils.transferTask(this.task, updatedTask);
+        this._animateNext();
+        this.remove();
+      }
+    }
+  }
+  _updateContent() {
+    if (TaskStatus.completed.isSame(this.task.status)) {
+      this.style.order = String(this.task.position).substr(2, 9);
+      this.classList.add("completed");
+      this.setAttribute("data-completed", this.task.completed.getTime());
+      if (this.radio) {
+        this.radio.checked = false;
+        this.radio.disabled = true;
+      }
+    } else {
+      this.style.order = "";
+      this.classList.remove("completed");
+      if (this.radio) this.radio.disabled = false;
+    }
+    this.querySelector('[data-role="mainArea"]').innerHTML = this._renderMain(this.task);
+  }
+  async _complete(e, target) {
+    this._hoverHandler({ type: "mouseleave" });
+    if (TaskStatus.completed.isSame(this.task.status)) {
+
+      this.task.status = TaskStatus.needsAction;
+      this.task.completed = undefined;
+      this.task.position = 0;
+      this.task.isSynced = false;
+      this.task.updated = new Date();
+
+      ToDoUtils.updateTask(this.task);
+      this._updateContent();
+      if (!this.task.parent) {
+        if (this._animateNext()) this._animateThis();
+      } else {
+        if (this._animatePrev()) this._animateThis();
+      }
+      this.dispatchEvent(new CustomEvent("taskincomplete", { detail: this, bubbles: true }));
+    } else {
+      this.task.status = TaskStatus.completed;
+      this.task.completed = new Date();
+      this.task.position = Date.now();
+      this.task.isSynced = false;
+      this.task.updated = new Date();
+
+      ToDoUtils.updateTask(this.task);
+      this._updateContent();
+      if (!this.task.parent) {
+        [...this.subTaskItemList.children].forEach(taskItem => {
+          if (TaskStatus.completed.isSame(taskItem.task.status)) return;
+          taskItem._complete();
+        });
+      }
+      if (this._animateNext()) this._animateThis();
+      this.dispatchEvent(new CustomEvent("taskcomplete", { detail: this, bubbles: true }));
+    }
+  }
+  _animateThis() {
+    const length = window.getComputedStyle(this).height;
+    this.animate(
+      [{ height: "0px" }, { height: length }],
+      { duration: this.DURATION, iterations: 1 }
+    );
+  }
+  _animateNext() {
+    const nextElm = this.nextElementSibling;
+    if (nextElm) {
+      const length = window.getComputedStyle(this).height;
+      nextElm.animate(
+        [{ marginTop: length }, { marginTop: "0px" }],
+        { duration: this.DURATION, iterations: 1 }
+      );
+      return true;
+    } else {
+      return false;
+    }
+  }
+  _animatePrev() {
+    const prevElm = this.previousElementSibling;
+    if (prevElm) {
+      const length = window.getComputedStyle(this).height;
+      prevElm.animate(
+        [{ marginBottom: length }, { marginBottom: "0px" }],
+        { duration: this.DURATION, iterations: 1 }
+      );
+      return true;
+    } else {
+      return false;
+    }
+  }
+  _view(e) {
+    if (this.radio && this.radio.checked) {
+      this.radio.checked = false;
+      e.preventDefault();
+    }
+  }
+  _start(e, target) {
+    this.dispatchEvent(new CustomEvent("taskstart", { detail: this, bubbles: true }));
+  }
+  _edit(e, target) {
+    this.dispatchEvent(new CustomEvent("taskedit", { detail: this, bubbles: true }));
+  }
+  _delete(e, target) {
+    ToDoUtils.deleteTask(this.task);
+
+    if (!this.task.parent) {
+      this.dispatchEvent(new CustomEvent("taskdelete", { bubbles: true }));
+    }
+    if (this._animateNext() || this._animatePrev()) { /* do nothing */ }
+    this.remove();
+  }
+  _hoverHandler(e) {
+    const compCheckList = this.querySelectorAll('[data-action="complete"]');
+    switch (e.type) {
+      case "mouseenter":
+        compCheckList.forEach(elm => elm.classList.add("hover"));
+        break;
+      case "mouseleave":
+        compCheckList.forEach(elm => elm.classList.remove("hover"));
+        break;
+      default:
+    }
+  }
+  _updateOrder(e) {
+    if (e) { ToDoUtils.sortTask(e.item) }
+    [...this.subTaskItemList.children].forEach((taskItem, idx) => {
+      if (TaskStatus.completed.isSame(taskItem.task.status)) return;
+      idb.updateTask(taskItem.id, task => {
+        task.position = idx;
+        return task;
+      })
+    })
+  }
+
 
 }
-for (const key in customTags) {
-  const customTag = customTags[key];
+
+/** 選択されたtodoList内のtodoTaskを一覧表示するelement
+ * - `data-role="newTaskTitle"`
+ * - `data-role="container"`
+ * - `data-role="modal"`
+ * - `data-action="add"`
+ * @class ToDoTasks
+ * @extends {HTMLElement}
+ */
+class ToDoTasks extends HTMLElement {
+  currentListId;
+  taskItems;
+  _initialized;
+
+  connectedCallback() {
+    Store.onChange(storeKeys.doingAct, this);
+    this._init(true);
+
+    this.querySelectorAll("[data-role]").forEach(elm => {
+      this[elm.dataset.role] = elm;
+    });
+    this.addEventListener("click", e => {
+      const target = e.target.closest("[data-action]");
+      if (target && this[`_${target.dataset.action}`]) {
+        this[`_${target.dataset.action}`](e, target);
+      }
+    });
+    new Sortable(this.container, {
+      animation: 150,
+      handle: ".sortable-handle",
+      draggable: ".task_item",
+      onUpdate: e => this._updateOrder(e)
+    });
+
+    this.addEventListener("taskstart", this._taskStartHandler.bind(this));
+    this.addEventListener("taskedit", e => this.modal.open(e.detail));
+    this.addEventListener("taskcomplete", e => this.completed.add(e.detail));
+    this.addEventListener("taskincomplete", e => {
+      this.container.insertAdjacentElement("afterbegin", e.detail);
+      this._updateOrder();
+    });
+  }
+  update({ key, value }) {
+    this[key] = value;
+  }
+
+  _init(flag) {
+    if (flag) {
+      if (this._initialized) {
+        return;
+      } else {
+        this._initialized = true;
+        this.classList.add("is-hidden");
+      }
+    } else {
+      if (this._initialized) {
+        this._initialized = false;
+        this.classList.remove("is-hidden");
+      } else {
+        return;
+      }
+    }
+  }
+  show(taskListItem) {
+    if (taskListItem) {
+      this._init(false);
+      this.taskListItem = taskListItem;
+      this.currentTaskList = taskListItem.taskList;
+      this.currentListId = taskListItem.id;
+      this._render(taskListItem.id);
+    } else {
+      this._init(true);
+    }
+  }
+  async _render(listId) {
+    this.container.innerHTML = "";
+    this.completed.init();
+
+    const tasks = await idb.getIndexAllTask("listId", ALL_TASK_LISTID(listId));
+    this.taskItems = [];
+    const lostChildren = [];
+    tasks.forEach(task => {
+      if (SyncAction.DELETE.isSame(task.action)) {
+        return;
+      } else if (task.parent) {
+        lostChildren.push(task);
+      } else {
+        const taskItem = this._renderContent(task);
+        this.taskItems.push(taskItem);
+        if (TaskStatus.completed.isSame(task.status)) {
+          this.completed.add(taskItem);
+        } else {
+          this.container.appendChild(taskItem);
+        }
+      }
+    });
+    lostChildren.forEach(task => {
+      const parent = this.taskItems.find(taskItem => taskItem.id === task.parent);
+      if (parent) {
+        parent.addSubTask(this._renderContent(task));
+      } else {
+        delete task.parent;
+        const independentTaskItem = this._renderContent(task);
+        if (TaskStatus.completed.isSame(task.status)) {
+          this.completed.add(independentTaskItem);
+        } else {
+          this.container.appendChild(independentTaskItem);
+        }
+      }
+    })
+  }
+  _renderContent(task) {
+    const taskItem = document.createElement("task-item");
+    taskItem.init(task);
+    return taskItem;
+  }
+  _add() {
+    const newTask = new Task({
+      id: Date.now().toString(),
+      listId: this.currentListId,
+      title: this.newTaskTitle.value,
+      action: SyncAction.INSERT
+    });
+    this.newTaskTitle.value = "";
+    const newTaskItem = this._renderContent(newTask);
+    ToDoUtils.insertTask(newTask, newTaskItem);
+    this.taskItems.push(newTaskItem);
+    this.container.insertAdjacentElement('afterbegin', newTaskItem);
+    this._updateOrder();
+  }
+  _updateOrder(e) {
+    if (e) { ToDoUtils.sortTask(e.item) }
+    [...this.container.children].forEach((taskItem, idx) => {
+      idb.updateTask(taskItem.id, task => {
+        task.position = idx;
+        return task;
+      })
+    })
+  }
+  _taskStartHandler(e) {
+    if (this.doingAct) return;
+
+    const act = new Act({
+      summary: e.detail.task.title,
+      description: e.detail.task.notes
+    });
+    Store.set(storeKeys.toBeStartedAct, act);
+    Store.set(storeKeys.summaryToView, act.summary);
+    Store.set(storeKeys.descriptionToView, act.description);
+  }
+}
+/**
+ * taskの編集モーダル
+ * - `data-action="close"`属性：クリックされるとモーダルを閉じる
+ * - `data-action="apply"`属性：クリックされると設定を保存
+ * - `data-action="delete"`属性：
+ * - `data-role="header"`属性：モーダルのヘッダー
+ * - `data-role="taskTitle"`属性：taskのタイトルinput
+ * - `data-role="taskNotes"`属性：taskのnotes, textbox
+ * - `data-role="taskDue"`属性：taskのdue, input type="date"
+ * - `data-role="listId"`属性：taskListのselectbox
+ * 
+ *
+ * @class TaskListModal
+ * @extends {HTMLElement}
+ */
+class TaskModal extends HTMLElement {
+  currentTaskItem;
+  connectedCallback() {
+    this.classList.add("modal");
+    this.innerHTML = `
+        <div data-action="close" class="modal-background"></div>
+        <div class="modal-card" style="width: 300px">
+          <header class="modal-card-head p-3">
+            <p data-role="header" class="modal-card-title is-size-6">編集</p>
+            <span data-action="delete" class="is-clickable" title="削除">
+              <svg class="icon"><use xlink:href="#icon-trashcan"></use></svg>
+            </span>
+            <button data-action="close" class="delete"></button>
+          </header>
+          <section class="modal-card-body">
+            <div class="field">
+              <input type="text" data-role="taskTitle" class="input" placeholder="title">
+              <textarea data-role="taskNotes" class="textarea has-fixed-size" placeholder="詳細"></textarea>
+            </div>
+            <div class="field">
+              <label class="label">期限</label>
+              <div class="control">
+                <input data-role="taskDue" type="date" class="input" min="1900-01-01">
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">移動</label>
+              <div class="select control">
+                <select data-role="listId"></select>
+              </div>
+            </div>
+          </section>
+          <footer class="modal-card-foot">
+            <button data-action="apply" class="button is-link">保存</button>
+            <button data-action="close" class="button is-link is-light">キャンセル</button>
+          </footer>
+        </div>
+      `;
+    this.querySelectorAll("[data-role]").forEach(elm => {
+      this[elm.dataset.role] = elm;
+    });
+    this.querySelectorAll("[data-action]").forEach(elm => {
+      elm.addEventListener("click", this[`_${elm.dataset.action}`].bind(this))
+    });
+    this.addEventListener("click", e => e.stopPropagation());
+  }
+  async open(taskItem) {
+    this.currentTaskItem = taskItem;
+    this.classList.add("is-active");
+    this.taskTitle.focus();
+
+    this.listId.disabled = taskItem.task.parent ? true : false;
+    this._fillForms(taskItem.task);
+    this._genList(taskItem.task.listId);
+  }
+  _close() {
+    this.classList.remove("is-active");
+  }
+  async _apply() {
+    let due;
+    if (this.taskDue.value) {
+      due = new Date(this.taskDue.value);
+      due.setHours(0, 0, 0, 0);
+    } else {
+      due = undefined;
+    }
+
+    const updatedTask = { ...this.currentTaskItem.task };
+    updatedTask.title = this.taskTitle.value;
+    updatedTask.notes = this.taskNotes.value;
+    updatedTask.due = due;
+    updatedTask.isSynced = false;
+    updatedTask.updated = new Date();
+    if (this.listId.value) updatedTask.listId = this.listId.value;
+
+    this.currentTaskItem.update(updatedTask);
+    this._close();
+  }
+  _delete() {
+    this.currentTaskItem._delete();
+    this._close();
+  }
+  async _genList(currentListId) {
+    const lists = await idb.getIndexAllTaskList("order");
+    let HTML = "";
+    lists.forEach(list => {
+      if (list.id === currentListId) {
+        HTML = `<option value="" hidden>${list.title}</option>` + HTML;
+      } else {
+        HTML += `<option value="${list.id}">${list.title}</option>`;
+      }
+    });
+    this.listId.innerHTML = HTML;
+  }
+  _fillForms(task) {
+    if (task) {
+      this.taskTitle.value = task.title;
+      this.taskNotes.value = task.notes ? task.notes : "";
+      this.taskDue.value = task.due ? new MyDate(task.due).strftime("%Y-%m-%d") : "";
+    } else {
+      this.taskTitle.value = "";
+      this.taskNotes.value = "";
+      this.taskDue.value = "";
+    }
+  }
+}
+
+/**
+ * 完了したtaskのモーダル
+ * - `data-action="open"`属性：クリックされるとモーダルを開く
+ * - `data-action="close"`属性：クリックされるとモーダルを閉じる
+ * - `data-role="buttonText"`属性：ボタンの表示テキスト
+ * - `data-role="modal"`属性：モーダル
+ * - `data-role="header"`属性：モーダルのヘッダー
+ * - `data-role="container"`属性：タスクをリストするコンテナ
+ *
+ * @class CompletedTask
+ * @extends {HTMLElement}
+ */
+class CompletedTask extends HTMLElement {
+  _taskCnt;
+  taskItems;
+  connectedCallback() {
+    this.innerHTML = `
+      <span data-role="buttonText" data-action="open" class="button"></span>
+      <div data-role="modal" class="modal">
+        <div data-action="close" class="modal-background"></div>
+        <div class="modal-card" style="height:450px">
+          <header class="modal-card-head p-3">
+            <p data-role="header" class="modal-card-title is-size-6">編集</p>
+            <button data-action="close" class="delete"></button>
+          </header>
+          <section class="modal-card-body">
+            <ul data-role="container"></ul>
+          </section>
+          <footer class="modal-card-foot">
+            <button data-action="close" class="button is-link is-light">閉じる</button>
+          </footer>
+        </div>
+      </div>
+      `;
+    this.querySelectorAll("[data-role]").forEach(elm => {
+      this[elm.dataset.role] = elm;
+    });
+    this.querySelectorAll("[data-action]").forEach(elm => {
+      elm.addEventListener("click", this[`_${elm.dataset.action}`].bind(this))
+    });
+    this.addEventListener("click", e => {
+      e.stopPropagation();
+      const target = e.target.closest("[data-action]");
+      if (target && this[`_${target.dataset.action}`]) {
+        this[`_${target.dataset.action}`](e, target);
+      }
+    });
+    this.addEventListener("taskdelete", () => this.taskCnt--);
+    this.addEventListener("taskincomplete", () => this.taskCnt--);
+  }
+  init() {
+    this.taskCnt = 0;
+    this.container.innerHTML = "";
+  }
+  add(taskItem) {
+    this.taskCnt = this.taskCnt + 1;
+
+    const idx = [...this.container.children].findIndex(li => li.dataset.completed < taskItem.dataset.completed);
+    if (idx >= 0) {
+      this.container.children[idx].insertAdjacentElement('beforebegin', taskItem);
+    } else {
+      this.container.appendChild(taskItem);
+    }
+  }
+  _open() {
+    this.modal.classList.add("is-active");
+  }
+  _close() {
+    this.modal.classList.remove("is-active");
+  }
+
+  set taskCnt(val) {
+    this._taskCnt = val;
+    this.buttonText.innerHTML = `完了(${this._taskCnt}件)`;
+  }
+  get taskCnt() { return this._taskCnt }
+}
+
+const customTags = [
+  {
+    class: TabSwipeable,
+    name: "tab-swipeable"
+  },
+  {
+    class: SettingsModal,
+    name: "settings-modal"
+  },
+  {
+    class: SettingsModalOpen,
+    name: "modal-open"
+  },
+  {
+    class: UserImg,
+    custom: "img",
+    name: "user-img"
+  },
+  {
+    class: UserEmail,
+    name: "user-email"
+  },
+  {
+    class: SelectCalendar,
+    custom: "select",
+    name: "select-cal"
+  },
+  {
+    class: SelectLogCalendar,
+    custom: "select",
+    name: "select-log"
+  },
+  {
+    class: NewCalendar,
+    custom: "input",
+    name: "new-cal"
+  },
+  {
+    class: AddCalendar,
+    custom: "button",
+    name: "add-cal"
+  },
+  {
+    class: EventColor,
+    name: "eve-col"
+  },
+  {
+    class: NotificationCheck,
+    custom: "input",
+    name: "notification-check"
+  },
+  {
+    class: Summary,
+    custom: "input",
+    name: "act-summary"
+  },
+  {
+    class: Description,
+    name: "act-description"
+  },
+  {
+    class: ActStart,
+    custom: "button",
+    name: "act-start"
+  },
+  {
+    class: ActEnd,
+    custom: "button",
+    name: "act-end"
+  },
+  {
+    class: TimeElapsed,
+    name: "time-elapsed"
+  },
+  {
+    class: NoticeShow,
+    name: "notice-show"
+  },
+  {
+    class: DoneAct,
+    name: "done-act"
+  },
+  {
+    class: DoneActList,
+    name: "done-act-list"
+  },
+  {
+    class: UpcomingAct,
+    name: "upcoming-act"
+  },
+  {
+    class: UpcomingActList,
+    name: "upcoming-act-list"
+  },
+  {
+    class: ToolTip,
+    name: "tool-tip"
+  },
+  {
+    class: QuillCommon,
+    name: "quill-common"
+  },
+  {
+    class: DiaryNav,
+    name: "diary-nav"
+  },
+  {
+    class: DiaryContainer,
+    custom: "div",
+    name: "diary-container"
+  },
+  {
+    class: RoutineContainer,
+    custom: "div",
+    name: "routine-container"
+  },
+  {
+    class: RoutineModal,
+    name: "routine-modal"
+  },
+  {
+    class: ToDoContainer,
+    custom: "div",
+    name: "todo-container"
+  },
+  {
+    class: SelectTaskList,
+    name: "select-tasklist"
+  },
+  {
+    class: TaskListItem,
+    name: "tasklist-item"
+  },
+  {
+    class: TaskListModal,
+    name: "tasklist-modal"
+  },
+  {
+    class: ToDoTasks,
+    name: "todo-tasks"
+  },
+  {
+    class: TaskModal,
+    name: "task-modal"
+  },
+  {
+    class: CompletedTask,
+    name: "completed-task"
+  },
+  {
+    class: TaskItem,
+    name: "task-item"
+  }
+];
+customTags.forEach(customTag => {
   if (customTag.custom) {
     customElements.define(customTag.name, customTag.class, { extends: customTag.custom });
     console.log(`usage: <${customTag.custom} is="${customTag.name}">`)
@@ -2414,7 +4266,7 @@ for (const key in customTags) {
     customElements.define(customTag.name, customTag.class);
     console.log(`usage: <${customTag.name}>...</${customTag.name}>`)
   }
-}
+});
 
 /* *************************************** */
 /*  functions definition                   */
@@ -2423,8 +4275,12 @@ function handleClientLoad() {
 
   const CLIENT_ID = '235370693851-sctgf3t32m6df955d28g898itm97165d.apps.googleusercontent.com';
   const API_KEY = 'AIzaSyDENRe8RAK0ZhuZT9f0VQgSqG3o0ybuf5c';
-  const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
-  const SCOPES = "https://www.googleapis.com/auth/calendar";
+  const DISCOVERY_DOCS = [
+    "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest",
+    "https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest"
+  ];
+  const SCOPES =
+    "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks";
 
   gapi.load('client:auth2', () => {
     gapi.client.init({
@@ -2451,6 +4307,8 @@ function appInit() {
     upcomingCalendarId: "primary",
     upcomingEnabled: false,
     colorId: "1",
+    routineEnabled: false,
+    todoEnabled: false,
     diaryEnabled: false,
     notificationEnabled: false
   }));
