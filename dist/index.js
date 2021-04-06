@@ -2718,11 +2718,12 @@ class RoutineContainer extends HTMLDivElement {
     this.addEventListener("click", e => {
       const target = e.target.closest("[data-action]");
       if (target && this[target.dataset.action]) {
-        this[target.dataset.action](target);
+        this[target.dataset.action](target.closest(".routine_item"));
       }
     })
     this._init();
     this.modal.addEventListener("update", this.routineUpdateHandler.bind(this));
+    this.modal.addEventListener("delete", () => this.delete(this.editingRoutineItem));
   }
   _init() {
     new Sortable(this.container, {
@@ -2745,14 +2746,13 @@ class RoutineContainer extends HTMLDivElement {
   }
   renderContents(routine) {
     const li = document.createElement("li");
-    li.classList.add("is-flex", "routine_item");
-    li.setAttribute("data-key", routine.id);
+    li.classList.add("is-flex", "routine_item", "box", "p-0");
+    li.id = routine.id;
     li.innerHTML = `
-      <div class="routine_details"><span class="button sortable-handle"><svg class="icon"><use xlink:href="#icon-arrows-v"></use></svg></span></div>
-      <div class="routine_details"><svg data-key="${routine.id}" data-action="start" class="icon has-text-primary is-clickable"><use xlink:href="#icon-play-outline"></use></svg></div>
+      <div class="routine_details sortable-handle"><span class="button"><svg class="icon"><use xlink:href="#icon-arrows-v"></use></svg></span></div>
+      <div class="routine_details"><button class="button" data-action="start"><svg class="icon has-text-primary is-clickable"><use xlink:href="#icon-play-outline"></use></svg></button></div>
       <div class="routine_details has-text-weight-bold is-size-7 routine_summary"><span ${routine.color ? 'style="background: linear-gradient(transparent 60% , ' + routine.color.value + ', transparent 110%);"' : ""}>${routine.summary}</span></div>
-      <div class="routine_details"><svg data-key="${routine.id}" data-action="edit" class="icon has-text-danger-dark is-clickable"><use xlink:href="#icon-pencil"></use></svg></div>
-      <div class="routine_details"><button data-key="${routine.id}" data-action="delete" class="delete"></button></div>
+      <div class="routine_details"><button class="button" data-action="edit"><svg class="icon has-text-danger-dark is-clickable"><use xlink:href="#icon-pencil"></use></svg></button></div>
     `;
     return li;
   }
@@ -2760,7 +2760,7 @@ class RoutineContainer extends HTMLDivElement {
     if (this.routineList.length === this.editingRoutine.order) {
       this.container.appendChild(this.renderContents(this.editingRoutine));
     } else {
-      this.container.children[this.editingRoutine.order].innerHTML = this.renderContents(this.editingRoutine).innerHTML;
+      this.editingRoutineItem.innerHTML = this.renderContents(this.editingRoutine).innerHTML;
     }
     this.updateRoutineList();
   }
@@ -2771,7 +2771,7 @@ class RoutineContainer extends HTMLDivElement {
     let queue = Promise.resolve();
     [...this.container.children].forEach((li, idx) => {
       queue = queue.then(() => {
-        return idb.updateRoutine(Number(li.dataset.key), routine => {
+        return idb.updateRoutine(Number(li.id), routine => {
           routine.order = idx;
           return routine;
         })
@@ -2779,26 +2779,27 @@ class RoutineContainer extends HTMLDivElement {
     })
     queue.then(() => this.updateRoutineList());
   }
-  open(target) {
+  open(routineItem) {
     this.editingRoutine = new Routine({ order: this.routineList.length });
-    this.modal.open(this.editingRoutine);
+    this.modal.open(this.editingRoutine, false);
   }
-  edit(target) {
-    this.editingRoutine = this.routineList.find(routine => routine.id === Number(target.dataset.key));
-    this.modal.open(this.editingRoutine);
+  edit(routineItem) {
+    this.editingRoutineItem = routineItem;
+    this.editingRoutine = this.routineList.find(routine => routine.id === Number(routineItem.id));
+    this.modal.open(this.editingRoutine, true);
   }
-  delete(target) {
-    target.closest("li").remove();
+  delete(routineItem) {
+    routineItem.remove();
 
-    idb.deleteRoutine(Number(target.dataset.key))
+    idb.deleteRoutine(Number(routineItem.id))
       .then(() => {
         this.updateRoutineOrder();
       });
   }
-  start(target) {
+  start(routineItem) {
     if (this.doingAct) return;
 
-    const startRoutine = this.routineList.find(routine => routine.id === Number(target.dataset.key));
+    const startRoutine = this.routineList.find(routine => routine.id === Number(routineItem.id));
     Store.set(storeKeys.toBeStartedAct, new Routine(startRoutine).getAct());
     Store.set(storeKeys.summaryToView, startRoutine.summary);
     Store.set(storeKeys.descriptionToView, startRoutine.description);
@@ -2809,7 +2810,8 @@ class RoutineContainer extends HTMLDivElement {
  * Routineページのモーダル
  * - `data-action="close"`属性：クリックされるとモーダルを閉じる
  * - `data-action="apply"`属性：クリックされると設定を保存
- * - `data-role="title"`属性：モーダルのヘッダー
+ * - `data-action="delete"`属性：クリックされると現在のルーティンを削除
+ * - `data-role="modalTitle"`属性：モーダルのヘッダー
  * - `data-role="summary"`属性：ルーティンのサマリー
  * - `data-role="description"`属性：ルーティンの詳細
  * - `data-role="color"`属性：ルーティンのイベントカラー
@@ -2826,10 +2828,17 @@ class RoutineModal extends HTMLElement {
     });
     this.samecolor.addEventListener("change", this._samecolorOnChange.bind(this));
     this.querySelectorAll("[data-action]").forEach(elm => {
-      elm.addEventListener("click", this[`_${elm.dataset.action}`].bind(this))
+      elm.addEventListener("click", this[`_${elm.dataset.action}`].bind(this));
     })
   }
-  open(routine) {
+  open(routine, isEdit) {
+    if (isEdit) {
+      this.modalTitle.innerHTML = "編集";
+      this.deleteButton.style.display = "initial";
+    } else {
+      this.modalTitle.innerHTML = "新しいRoutine";
+      this.deleteButton.style.display = "none";
+    }
     this.editingRoutine = routine;
     this.classList.add("is-active");
     this.summary.value = routine.summary;
@@ -2847,8 +2856,12 @@ class RoutineModal extends HTMLElement {
     this.color.disabled = e.target.checked;
   }
   _close(e) {
-    e.stopPropagation();
     this.classList.remove("is-active");
+  }
+  _delete(e) {
+    e.stopPropagation();
+    this.dispatchEvent(new Event("delete"));
+    this._close();
   }
   _apply(e) {
     e.stopPropagation();
