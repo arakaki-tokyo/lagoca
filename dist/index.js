@@ -105,10 +105,28 @@ class Cron {
   }
 }
 const OSs = {
-  App: { name: "App", option: { keyPath: "key" } },
-  DoneAct: { name: "DoneAct", option: { keyPath: "start" } },
-  Routine: { name: "Routine", option: { keyPath: 'id' }, index: [{ key: "order" }] },
-  Diary: { name: "Diary", option: { keyPath: 'date' }, index: [{ key: "isSynced" }] },
+  App: {
+    name: "App",
+    option: { keyPath: "key" }
+  },
+  DoneAct: {
+    name: "DoneAct",
+    option: { keyPath: "start" }
+  },
+  Routine: {
+    name: "Routine",
+    option: { keyPath: 'id' },
+    index: [
+      { name: "order", keyPath: "order" }
+    ]
+  },
+  Diary: {
+    name: "Diary",
+    option: { keyPath: 'date' },
+    index: [
+      { name: "isSynced", keyPath: "isSynced" }
+    ]
+  }
 };
 /** 
  * 
@@ -125,7 +143,7 @@ const idb = new class {
         const objectStore = OS.option ?
           db.createObjectStore(OS.name, OS.option) :
           db.createObjectStore(OS.name);
-        if (OS.index) OS.index.forEach(idx => objectStore.createIndex(idx.key, idx.key));
+        if (OS.index) OS.index.forEach(idx => objectStore.createIndex(idx.name, idx.keyPath));
       })
     }
 
@@ -254,7 +272,7 @@ const idb = new class {
   getUnsyncedDiaries() {
     return this.db.then(db => {
       const req = db.transaction(OSs.Diary.name, "readonly")
-        .objectStore(OSs.Diary.name).index(OSs.Diary.index[0].key).getAll(FALSE);
+        .objectStore(OSs.Diary.name).index(OSs.Diary.index[0].keyPath).getAll(FALSE);
       return new Promise((resolve, reject) => {
         req.onsuccess = (ev) => resolve(ev.target.result);
         req.onerrors = (ev) => reject(ev);
