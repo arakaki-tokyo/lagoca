@@ -150,13 +150,15 @@ const OSs = {
  * @method getAllRoutine
  * */
 const idb = new class {
-  VERSION = 1;
+  VERSION = 2;
   constructor(OSs) {
     const openRequest = indexedDB.open("logoca", this.VERSION);
     openRequest.onupgradeneeded = function (ev) {
       // initialize, or update idb
       const db = ev.target.result;
       Object.values(OSs).forEach(OS => {
+        if (db.objectStoreNames.contains(OS.name)) return;
+
         const objectStore = OS.option ?
           db.createObjectStore(OS.name, OS.option) :
           db.createObjectStore(OS.name);
