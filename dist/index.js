@@ -2868,131 +2868,129 @@ class RoutineModal extends HTMLElement {
 }
 
 
-const customTags = {
-  TabSwipeable: {
+const customTags = [
+  {
+    class: TabSwipeable,
     custom: "div",
-    name: "tab-swipeable",
-    class: TabSwipeable
+    name: "tab-swipeable"
   },
-  SettingsModal: {
-    name: "settings-modal",
-    class: SettingsModal
+  {
+    class: SettingsModal,
+    name: "settings-modal"
   },
-  SettingsModalOpen: {
-    name: "modal-open",
-    class: SettingsModalOpen
+  {
+    class: SettingsModalOpen,
+    name: "modal-open"
   },
-  UserImg: {
+  {
+    class: UserImg,
     custom: "img",
-    name: "user-img",
-    class: UserImg
+    name: "user-img"
   },
-  UserEmail: {
-    name: "user-email",
-    class: UserEmail
+  {
+    class: UserEmail,
+    name: "user-email"
   },
-  SelectCalendar: {
+  {
+    class: SelectCalendar,
     custom: "select",
-    name: "select-cal",
-    class: SelectCalendar
+    name: "select-cal"
   },
-  SelectLogCalendar: {
+  {
+    class: SelectLogCalendar,
     custom: "select",
-    name: "select-log",
-    class: SelectLogCalendar
+    name: "select-log"
   },
-  NewCalendar: {
+  {
+    class: NewCalendar,
     custom: "input",
-    name: "new-cal",
-    class: NewCalendar
+    name: "new-cal"
   },
-  AddCalendar: {
+  {
+    class: AddCalendar,
     custom: "button",
-    name: "add-cal",
-    class: AddCalendar
+    name: "add-cal"
   },
-  EventColor: {
-    name: "eve-col",
-    class: EventColor
+  {
+    class: EventColor,
+    name: "eve-col"
   },
-  NotificationCheck: {
+  {
+    class: NotificationCheck,
     custom: "input",
-    name: "notification-check",
-    class: NotificationCheck
+    name: "notification-check"
   },
-  Summary: {
+  {
+    class: Summary,
     custom: "input",
-    name: "act-summary",
-    class: Summary
+    name: "act-summary"
   },
-  Description: {
-    name: "act-description",
-    class: Description
+  {
+    class: Description,
+    name: "act-description"
   },
-  ActStart: {
+  {
+    class: ActStart,
     custom: "button",
-    name: "act-start",
-    class: ActStart
+    name: "act-start"
   },
-  ActEnd: {
+  {
+    class: ActEnd,
     custom: "button",
-    name: "act-end",
-    class: ActEnd
+    name: "act-end"
   },
-  TimeElapsed: {
-    name: "time-elapsed",
-    class: TimeElapsed
+  {
+    class: TimeElapsed,
+    name: "time-elapsed"
   },
-  NoticeShow: {
-    name: "notice-show",
-    class: NoticeShow
+  {
+    class: NoticeShow,
+    name: "notice-show"
   },
-  DoneAct: {
-    name: "done-act",
-    class: DoneAct
+  {
+    class: DoneAct,
+    name: "done-act"
   },
-  DoneActList: {
-    name: "done-act-list",
-    class: DoneActList
+  {
+    class: DoneActList,
+    name: "done-act-list"
   },
-  UpcomingAct: {
-    name: "upcoming-act",
-    class: UpcomingAct
+  {
+    class: UpcomingAct,
+    name: "upcoming-act"
   },
-  UpcomingActList: {
-    name: "upcoming-act-list",
-    class: UpcomingActList
+  {
+    class: UpcomingActList,
+    name: "upcoming-act-list"
   },
-  ToolTip: {
-    name: "tool-tip",
-    class: ToolTip
+  {
+    class: ToolTip,
+    name: "tool-tip"
   },
-  QuillCommon: {
-    name: "quill-common",
-    class: QuillCommon
+  {
+    class: QuillCommon,
+    name: "quill-common"
   },
-  DiaryNav: {
-    name: "diary-nav",
-    class: DiaryNav
+  {
+    class: DiaryNav,
+    name: "diary-nav"
   },
-  DiaryContainer: {
+  {
+    class: DiaryContainer,
     custom: "div",
-    name: "diary-container",
-    class: DiaryContainer
+    name: "diary-container"
   },
-  RoutineContainer: {
+  {
+    class: RoutineContainer,
     custom: "div",
-    name: "routine-container",
-    class: RoutineContainer
+    name: "routine-container"
   },
-  RoutineModal: {
-    name: "routine-modal",
-    class: RoutineModal
-  },
-
-}
-for (const key in customTags) {
-  const customTag = customTags[key];
+  {
+    class: RoutineModal,
+    name: "routine-modal"
+  }
+];
+customTags.forEach(customTag => {
   if (customTag.custom) {
     customElements.define(customTag.name, customTag.class, { extends: customTag.custom });
     console.log(`usage: <${customTag.custom} is="${customTag.name}">`)
@@ -3000,7 +2998,7 @@ for (const key in customTags) {
     customElements.define(customTag.name, customTag.class);
     console.log(`usage: <${customTag.name}>...</${customTag.name}>`)
   }
-}
+});
 
 /* *************************************** */
 /*  functions definition                   */
