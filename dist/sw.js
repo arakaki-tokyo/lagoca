@@ -44,7 +44,7 @@ const notificationClickHandler = new class {
     console.dir(e);
     e.notification.close();
     const proc = (e.action === 'end') ? this.endAct.bind(this) : this.showPage;
-    
+
     e.waitUntil(
       self.clients.matchAll({ type: "window" })
         .then(cl => cl.find(c => c.url == `${location.origin}/`))
@@ -60,32 +60,32 @@ const notificationClickHandler = new class {
     }
   }
   async endAct(client, e) {
-      if (client) {
-        client.postMessage(null);
-      } else {
-        // save to indexedDB
-        let toBeEndedAct;
-        await idb.update("App", "doingAct", ({key, value}) => {
-          toBeEndedAct = {...value};
-          return {key, value: null};
-        });
-        toBeEndedAct.isSynced = false;
-        toBeEndedAct.end = Date.now();
-        const [h, m, s] = this.calcElapsedTime(toBeEndedAct.start, toBeEndedAct.end);
-        const elapsedTime = `${h == 0 ? "" : h + "h"}${m}m`;
-        await idb.update("App", "summaryToView", ({key, value}) => {
-          toBeEndedAct.summary = `${value} (${elapsedTime})`
-          return {key, value: ""};
-        });
-        await idb.update("App", "descriptionToView", ({key, value}) => {
-          toBeEndedAct.description = value;
-          return {key, value: ""};
-        });
-        return await idb.update("App", "doneActList", ({key, value}) =>  {
-          value.push(toBeEndedAct);
-          return {key, value};
-        });
-      }
+    if (client) {
+      client.postMessage(null);
+    } else {
+      // save to indexedDB
+      let toBeEndedAct;
+      await idb.update("App", "doingAct", ({ key, value }) => {
+        toBeEndedAct = { ...value };
+        return { key, value: null };
+      });
+      toBeEndedAct.isSynced = false;
+      toBeEndedAct.end = Date.now();
+      const [h, m, s] = this.calcElapsedTime(toBeEndedAct.start, toBeEndedAct.end);
+      const elapsedTime = `${h == 0 ? "" : h + "h"}${m}m`;
+      await idb.update("App", "summaryToView", ({ key, value }) => {
+        toBeEndedAct.summary = `${value} (${elapsedTime})`
+        return { key, value: "" };
+      });
+      await idb.update("App", "descriptionToView", ({ key, value }) => {
+        toBeEndedAct.description = value;
+        return { key, value: "" };
+      });
+      return await idb.update("App", "doneActList", ({ key, value }) => {
+        value.push(toBeEndedAct);
+        return { key, value };
+      });
+    }
   }
   calcElapsedTime(start, end) {
     const elapsedTime = Math.floor((end - start) / 1000);
@@ -97,7 +97,7 @@ const notificationClickHandler = new class {
 
 }
 
-const cacheHandler = new class{
+const cacheHandler = new class {
   cacheVersion = "1";
   cacheItems = [
     "/",
@@ -109,7 +109,7 @@ const cacheHandler = new class{
     "/img/logo72.png",
     "/img/logo192.png"
   ];
-  constructor(){
+  constructor() {
     self.addEventListener('install', this.addCache.bind(this));
     self.addEventListener('fetch', this.proxy);
   }
@@ -119,7 +119,7 @@ const cacheHandler = new class{
         .then(cache => cache.addAll(this.cacheItems))
     );
   }
-  proxy(e){
+  proxy(e) {
     e.respondWith(
       caches.match(e.request)
         .then(res => res || fetch(e.request))
