@@ -321,6 +321,48 @@ class MyDate extends Date {
   }
 }
 
+class Enum {
+  static _created = new Map();
+  name;
+  value;
+  constructor() {
+    if (this.constructor._created.has(this.__proto__)) {
+      return;
+    } else {
+      this.constructor._created.set(this.__proto__);
+    }
+    let value = 0;
+    Object.keys(this.constructor).forEach(key => {
+
+      if (this.constructor[key]) {
+        const maybeNum = Number(this.constructor[key]);
+        if (!Number.isNaN(maybeNum)) {
+          value = Math.floor(maybeNum);
+        }
+      }
+      this.constructor[key] = new this.__proto__.constructor();
+      this.constructor[key].name = key;
+      this.constructor[key].value = value;
+      Object.freeze(this.constructor[key]);
+      value++;
+    })
+    Object.freeze(this.__proto__.constructor);
+  }
+  static [Symbol.iterator]() {
+    return Object.values(this)[Symbol.iterator]()
+  }
+
+  toString() { return this.name; }
+  isSame(obj) {
+    return obj && obj.name === this.name && obj.value === this.value;
+  }
+  isSameName(str) {
+    return str === this.name;
+  }
+  isSameValue(val) {
+    return val === this.value;
+  }
+}
 const API = new class {
   logCalendarId;
   colorId;
