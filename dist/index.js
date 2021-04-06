@@ -927,25 +927,44 @@ function Calendar({ id = "", summary = "" }) {
  * セッティングデータクラス
  *
  * @class Settings
- * @property {boolean} upcomingEnabled
- * @property {string} upcomingCalendarId
- * @property {string} logCalendarId
- * @property {string} colorId
+ * @property {boolean}  upcomingEnabled
+ * @property {string}   upcomingCalendarId
+ * @property {string}   logCalendarId
+ * @property {string}   colorId
+ * @property {boolean}  routineEnabled
+ * @property {boolean}  todoEnabled
+ * @property {boolean}  diaryEnabled
+ * @property {boolean}  notificationEnabled
  */
-function Settings({
-  upcomingEnabled = "",
-  upcomingCalendarId = "",
-  logCalendarId = "",
-  colorId = "",
-  diaryEnabled = "",
-  notificationEnabled = ""
-}) {
-  this.upcomingEnabled = upcomingEnabled;
-  this.upcomingCalendarId = upcomingCalendarId;
-  this.logCalendarId = logCalendarId;
-  this.colorId = colorId;
-  this.diaryEnabled = diaryEnabled;
-  this.notificationEnabled = notificationEnabled;
+class Settings {
+  upcomingEnabled;
+  upcomingCalendarId;
+  logCalendarId;
+  colorId;
+  routineEnabled;
+  todoEnabled;
+  diaryEnabled;
+  notificationEnabled;
+
+  constructor({
+    upcomingEnabled,
+    upcomingCalendarId,
+    logCalendarId,
+    colorId,
+    routineEnabled,
+    todoEnabled,
+    diaryEnabled,
+    notificationEnabled,
+  }) {
+    this.upcomingEnabled = upcomingEnabled;
+    this.upcomingCalendarId = upcomingCalendarId;
+    this.logCalendarId = logCalendarId;
+    this.colorId = colorId;
+    this.routineEnabled = routineEnabled;
+    this.todoEnabled = todoEnabled;
+    this.diaryEnabled = diaryEnabled;
+    this.notificationEnabled = notificationEnabled;
+  }
 }
 /**
  * アクションデータクラス
@@ -1234,12 +1253,13 @@ const $ = (id) => document.getElementById(id);
  * @class TabSwipeable
  * @extends {HTMLElement}
  */
-class TabSwipeable extends HTMLDivElement {
+class TabSwipeable extends HTMLElement {
   tabs;
   view;
   scrollHandler;
   constructor() {
     super();
+    this.style.display = "block";
     this.tabs = {};
     this.scrollHandler = this._scrollHandler.bind(this);
     Store.onChange(storeKeys.settings, this);
@@ -1256,6 +1276,7 @@ class TabSwipeable extends HTMLDivElement {
     this.view = this.querySelector("#view");
     this.tabContainer = this.querySelector("#tab");
     this.view.addEventListener("scroll", this.scrollHandler);
+    window.addEventListener("resize", () => this._scrollHandler({ target: this.view }));
     // this.view.scrollLeftへの代入が機能しないため
     setTimeout(() => this.init(), 0);
   }
@@ -1266,33 +1287,51 @@ class TabSwipeable extends HTMLDivElement {
   update({ key, value }) {
     switch (key) {
       case storeKeys.settings:
-        if (value.diaryEnabled) {
-          Object.values(this.tabs.page2)
-            .forEach(elm => elm.classList.remove("is-hidden"));
+        this._toggleDisplay(value.routineEnabled, this.tabs.page0);
+        this._toggleDisplay(value.diaryEnabled, this.tabs.page2);
+        this._toggleDisplay(value.todoEnabled, this.tabs.page3);
+        if (!value.todoEnabled && !value.routineEnabled && !value.diaryEnabled) {
+          // single column
+          this.setAttribute("data-column", "1");
+        } else if (
+          (value.todoEnabled && !value.routineEnabled && !value.diaryEnabled) ||
+          (!value.todoEnabled && (value.routineEnabled || value.diaryEnabled))
+        ) {
+          // 2 column
+          this.setAttribute("data-column", "2");
         } else {
-          Object.values(this.tabs.page2)
-            .forEach(elm => elm.classList.add("is-hidden"));
+          // 3 column
+          this.setAttribute("data-column", "3");
         }
+        this._scrollHandler({ target: this.view });
         break;
       case storeKeys.toBeStartedAct:
         this.tabs.page1.tab.dispatchEvent(new Event("click"));
+    }
+  }
+  _toggleDisplay(flag, page) {
+    if (flag) {
+      Object.values(page).forEach(elm => elm.classList.remove("is-hidden"));
+    } else {
+      Object.values(page).forEach(elm => elm.classList.add("is-hidden"));
     }
   }
   tabClickHandler(e) {
     e.stopPropagation();
     Object.values(this.tabs).forEach(tab => {
       if (tab.tab.contains(e.target)) {
-        tab.tab.classList.add("is-active");
-        this.view.scrollLeft += tab.page.getBoundingClientRect().x;
-      } else {
-        tab.tab.classList.remove("is-active");
+        const scrollLength = tab.page.getBoundingClientRect().x - this.view.getBoundingClientRect().x;
+        this.view.scrollLeft += scrollLength;
       }
-
     })
   }
   _scrollHandler(e) {
     e.target.removeEventListener("scroll", this.scrollHandler);
-    const activeTab = Object.values(this.tabs).find(tab => tab.page.getBoundingClientRect().x === 0);
+    const origin = this.view.getBoundingClientRect().x;
+    const activeTab = Object.values(this.tabs).find(tab => {
+      const lengthFromOrigin = Math.abs(tab.page.getBoundingClientRect().x - origin);
+      return (lengthFromOrigin < 10 && !tab.page.classList.contains("is-hidden"));
+    });
     if (activeTab) {
       Object.values(this.tabs).forEach(tab => {
         if (tab === activeTab) {
@@ -1314,11 +1353,13 @@ class TabSwipeable extends HTMLDivElement {
  * - `data-action="apply"`属性：クリックされると設定を保存
  * - `data-state="logedout"`: 非ログイン状態で表示
  * - `data-state="signedin"`: ログイン状態で表示
- * - `data-role="upcoming_enabled"`: 予定の取得を有効化チェックボックス
- * - `data-role="upcoming_calendar_id"`: 予定を取得するカレンダーセレクトボックス
- * - `data-role="log_calendar_id"`: ログを記録するカレンダーセレクトボックス
- * - `data-role="color_id"`: イベントカラーラジオボタン
- * - `data-role="diary_enabled"`: diaryを有効化チェックボックス
+ * - `data-role="upcomingEnabled"`: 予定の取得を有効化チェックボックス
+ * - `data-role="upcomingCalendar_id"`: 予定を取得するカレンダーセレクトボックス
+ * - `data-role="logCalendar_id"`: ログを記録するカレンダーセレクトボックス
+ * - `data-role="colorId"`: イベントカラーラジオボタン
+ * - `data-role="routineEnabled"`: routineを有効化チェックボックス
+ * - `data-role="todoEnabled"`: todoリストを有効化チェックボックス
+ * - `data-role="diaryEnabled"`: diaryを有効化チェックボックス
  * 
  * 
  * @class SettingsModal
@@ -1343,38 +1384,15 @@ class SettingsModal extends HTMLElement {
   }
   connectedCallback() {
     this.querySelectorAll("[data-role]").forEach(elm => {
-      switch (elm.dataset.role) {
-        case "upcoming_enabled":
-          this.upcomingEnabled = elm;
-          break;
-        case "upcoming_calendar_id":
-          this.upcomingCalendarId = elm;
-          break;
-        case "log_calendar_id":
-          this.logCalendarId = elm;
-          break;
-        case "color_id":
-          this.colorId = elm;
-          break;
-        case "diary_enabled":
-          this.diaryEnabled = elm;
-          break;
-        case "notification_enabled":
-          this.notificationEnabled = elm;
-          break;
-        default:
-      }
-    });
-    this.addEventListener("click", (ev) => {
-      if ("role" in ev.target.dataset) {
-        if (ev.target == this.upcomingEnabled) {
-          this.upcomingCalendarId.disabled = !this.upcomingEnabled.checked;
-        }
-      }
-      else if ("action" in ev.target.dataset) {
-        this[ev.target.dataset.action](ev);
-      }
+      this[`${elm.dataset.role}`] = elm;
     })
+    this.querySelectorAll("[data-action]").forEach(elm => {
+      elm.addEventListener("click", this[`${elm.dataset.action}`].bind(this))
+    })
+    this.upcomingEnabled.addEventListener("click", e => {
+      this.upcomingCalendarId.disabled = !e.target.checked;
+    }
+    )
   }
   update({ key, value }) {
     switch (key) {
@@ -1431,6 +1449,8 @@ class SettingsModal extends HTMLElement {
       upcomingCalendarId: this.upcomingCalendarId.value,
       logCalendarId: this.logCalendarId.value,
       colorId: this.colorId.value,
+      routineEnabled: this.routineEnabled.checked,
+      todoEnabled: this.todoEnabled.checked,
       diaryEnabled: this.diaryEnabled.checked,
       notificationEnabled: this.notificationEnabled.checked
     });
@@ -1443,6 +1463,8 @@ class SettingsModal extends HTMLElement {
     this.upcomingCalendarId.disabled = !settings.upcomingEnabled;
     this.logCalendarId.value = settings.logCalendarId;
     this.colorId.value = settings.colorId;
+    this.routineEnabled.checked = settings.routineEnabled;
+    this.todoEnabled.checked = settings.todoEnabled;
     this.diaryEnabled.checked = settings.diaryEnabled;
     this.notificationEnabled.checked = settings.notificationEnabled;
   }
@@ -4083,7 +4105,6 @@ class CompletedTask extends HTMLElement {
 const customTags = [
   {
     class: TabSwipeable,
-    custom: "div",
     name: "tab-swipeable"
   },
   {
@@ -4284,6 +4305,8 @@ function appInit() {
     upcomingCalendarId: "primary",
     upcomingEnabled: false,
     colorId: "1",
+    routineEnabled: false,
+    todoEnabled: false,
     diaryEnabled: false,
     notificationEnabled: false
   }));
