@@ -709,7 +709,7 @@ const ToDoUtils = new class ToDoUtils {
           })
         }
         Store.set(storeKeys.listInserted, true);
-      }).then(res => console.log(res))
+      }).catch(res => console.log(res))
     }
   }
   /**
@@ -2925,7 +2925,6 @@ class ToDoContainer extends HTMLDivElement {
   }
   async synchronize() {
     const res = await API.listTasklist();
-    console.log(res);
 
     /** @type {Array<TaskList>} */const cloudTaskLists = [];
     res.result.items.forEach(item => {
@@ -2979,9 +2978,7 @@ class ToDoContainer extends HTMLDivElement {
         default:
       }
     } while (iCloudList < cloudTaskLists.length || iLocalList < localTaskLists.length);
-    console.log("taskList check done.");
     await Promise.all(waitResult);
-    console.log("taskList proc done.");
 
     // tasks synchronize
     const latestTaskLists = await idb.getAllTaskList();
@@ -3001,12 +2998,9 @@ class ToDoContainer extends HTMLDivElement {
     const localTaskFamilies = this._makeFamily(await idb.getAllTask());
     await Promise.all(waitResult);
     const cloudTaskFamilies = this._makeFamily(cloudTasks);
-    console.log("getting all task done.");
-    console.dir('cloudTaskFamilies: ', cloudTasks);
 
     await this._verifyTasks(cloudTaskFamilies, localTaskFamilies);
 
-    console.log("task proc done.")
     this.selectList.init();
   }
 
