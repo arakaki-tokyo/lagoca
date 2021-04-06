@@ -2,13 +2,14 @@ var path = require("path");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 
+const dist = 'docs';
 const entryJS = 'bundle_css.js';
 
 module.exports = {
   mode: "production",
-  entry: `./src/${entryJS}`,
+  entry: `./${dist}/${entryJS}`,
   output: {
-    path: __dirname + "/dist",
+    path: `${__dirname}/${dist}`,
     filename: entryJS,
   },
   optimization: {
