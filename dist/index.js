@@ -126,6 +126,21 @@ const OSs = {
     index: [
       { name: "isSynced", keyPath: "isSynced" }
     ]
+  },
+  TaskList: {
+    name: "TaskList",
+    option: { keyPath: 'id' },
+    index: [
+      { name: "order", keyPath: "order" }
+    ]
+  },
+  Task: {
+    name: "Task",
+    option: { keyPath: 'id' },
+    index: [
+      { name: "listId", keyPath: ["listId", "position"] },
+      { name: "parent", keyPath: "parent" }
+    ]
   }
 };
 /** 
@@ -693,6 +708,183 @@ class Routine {
       colorId: this.color ? this.color.id : null
     })
   }
+}
+
+class SyncAction extends Enum {
+  static DELETE;
+  static INSERT;
+  static UPDATE;
+} new SyncAction();
+
+class TaskList {
+  /** @type {String} */   id; // API
+  /** @type {String} */   title; // API
+  /** @type {Date} */     updated; // API
+  /** @type {Number} */   order
+  /** @type {Boolean} */  isSynced;
+  /** @type {SyncAction} */  action;
+  /** @type {Boolean} */  isPrimary;
+
+  /** 
+  * @param {object}   object
+  * @param {String}   object.id
+  * @param {String}   object.title
+  * @param {Date}     object.updated
+  * @param {Number}   object.order
+  * @param {Boolean}  [object.isSynced]
+  * @param {SyncAction}   object.action
+  * @param {Boolean}  [object.isPrimary]
+  */
+  constructor({
+    id,
+    title,
+    updated,
+    order,
+    isSynced = false,
+    action,
+    isPrimary = false
+  }) {
+    this.id = id;
+    this.title = title;
+    this.updated = updated;
+    this.order = order;
+    this.isSynced = isSynced;
+    this.action = action;
+    this.isPrimary = isPrimary;
+  }
+  static fromAPI(obj) {
+    return new TaskList({
+      id: obj.id,
+      title: obj.title,
+      updated: new Date(obj.updated),
+      isSynced: true,
+      order: Date.now()
+    })
+  }
+  static toAPI(taskList) {
+    return {
+      id: taskList.id,
+      title: taskList.title,
+    }
+  }
+  getAPIFormatted() {
+    return this.constructor.toAPI(this);
+  }
+}
+
+class TaskStatus extends Enum {
+  /** @type {TaskStatus} */ static needsAction;
+  /** @type {TaskStatus} */ static completed;
+} new TaskStatus();
+class Task {
+  /** @type {String} */     id;        // API
+  /** @type {String} */     title;     // API
+  /** @type {Date} */       updated;   // API
+  /** @type {String} */     parent;    // API
+  /** @type {Number} */     position;  // API
+  /** @type {String} */     notes;      // API
+  /** @type {TaskStatus} */ status;    // API
+  /** @type {Date} */       due;       // API
+  /** @type {Date} */       completed; // API
+  /** @type {String} */     links;      // API
+  /** @type {String} */     listId;
+  /** @type {Boolean} */    isSynced;
+  /** @type {SyncAction} */ action;
+
+  /**
+  * Creates an instance of Task.
+  * @param {object}     object
+  * @param {String}     object.id
+  * @param {String}     object.title
+  * @param {Date}       [object.updated]
+  * @param {String}     object.parent
+  * @param {Number}     object.position
+  * @param {String}     object.notes
+  * @param {TaskStatus} [object.status]
+  * @param {Date}       object.due
+  * @param {Date}       object.completed
+  * @param {String}     object.links
+  * @param {String}     object.listId
+  * @param {Boolean}    [object.isSynced]
+  * @param {SyncAction} object.action
+  * @memberof Task
+  */
+  constructor({
+    id,
+    title,
+    updated = new Date(),
+    parent,
+    position,
+    notes,
+    status = TaskStatus.needsAction,
+    due,
+    completed,
+    links,
+    listId,
+    isSynced = false,
+    action
+  }) {
+    this.id = id;
+    this.title = title;
+    this.updated = updated;
+    this.parent = parent;
+    this.position = Number(position);
+    this.notes = notes;
+    this.status = status;
+    this.due = due;
+    this.completed = completed;
+    this.links = links;
+    this.listId = listId;
+    this.isSynced = isSynced;
+    this.action = action;
+  }
+
+  static fromAPI(obj) {
+    const status = [...TaskStatus].find(s => s.name === obj.status);
+    let due;
+    if (obj.due) {
+      due = new Date(obj.due);
+      due.setHours(0, 0, 0, 0);
+    } else {
+      due = obj.due;
+    }
+    let position;
+    if (TaskStatus.completed.isSame(status)) {
+      position = new Date(obj.completed).getTime();
+    } else {
+      position = Number(obj.position);
+    }
+    return new Task({
+      id: obj.id,
+      title: obj.title,
+      updated: new Date(obj.updated),
+      parent: obj.parent,
+      position,
+      notes: obj.notes,
+      status,
+      due,
+      completed: obj.completed ? new Date(obj.completed) : undefined,
+      links: obj.links,
+      isSynced: true
+    })
+  }
+
+  static toAPI(task) {
+    const due = task.due ? new MyDate(task.due).strftime("%Y-%m-%dT00:00:00.000Z") : undefined;
+    return {
+      id: task.id,
+      title: task.title,
+      notes: task.notes,
+      status: task.status.name,
+      due
+    }
+  }
+
+  getAPIFormatted() {
+    return this.constructor.toAPI(this);
+  }
+
+
 }
 /* *************************************** */
 /*  custom elements definitions            */
