@@ -2439,9 +2439,7 @@ class ToolTip extends HTMLElement {
     <style>
       g{stroke-width: 0;fill: currentColor;}
       #tip{
-        position: absolute;
-        top: 0.5rem;
-        left: 1rem;
+        position: fixed;
         background: black;
         color: white;
         font-size: 11px;
@@ -2470,13 +2468,14 @@ class ToolTip extends HTMLElement {
     this.hide = this._hide.bind(this);
   }
   show(e) {
-    e.stopPropagation();
+    this.tip.style.left = `${this.getBoundingClientRect().x + 16}px`;
+    this.tip.style.top = `${this.getBoundingClientRect().y + 16}px`;
     const marginRight = window.innerWidth - (this.getBoundingClientRect().x + 270);
     if (marginRight < 0) {
       this.tip.style.transform = `translateX(${marginRight}px)`;
     }
     this.removeEventListener("click", this.show);
-    document.addEventListener("click", this.hide);
+    setTimeout(() => document.addEventListener("click", this.hide), 0);
     this.tip.style.display = "block";
   }
   _hide() {
