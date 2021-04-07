@@ -2858,7 +2858,7 @@ class RoutineModal extends HTMLElement {
   open(routine, isEdit) {
     if (isEdit) {
       this.modalTitle.innerHTML = "編集";
-      this.deleteButton.style.display = "initial";
+      this.deleteButton.style.display = "flex";
     } else {
       this.modalTitle.innerHTML = "新しいRoutine";
       this.deleteButton.style.display = "none";
@@ -2949,7 +2949,7 @@ class ToDoContainer extends HTMLDivElement {
     const sameIdExsist = 0;
     const onlyCloud = 1;
     const onlyLocal = 2;
-    do {
+    while (iCloudList < cloudTaskLists.length || iLocalList < localTaskLists.length) {
       const cTaskList = cloudTaskLists[iCloudList];
       const lTaskList = localTaskLists[iLocalList];
 
@@ -2985,7 +2985,7 @@ class ToDoContainer extends HTMLDivElement {
           break;
         default:
       }
-    } while (iCloudList < cloudTaskLists.length || iLocalList < localTaskLists.length);
+    }
     console.log("taskList check done.");
     await Promise.all(waitResult);
     console.log("taskList proc done.");
@@ -3031,7 +3031,7 @@ class ToDoContainer extends HTMLDivElement {
     const onlyCloud = 1;
     const onlyLocal = 2;
 
-    do {
+    while (iCloudTask < cloudTasks.length || iLocalTask < localTasks.length) {
       const cTask = cloudTasks[iCloudTask];
       const lTask = localTasks[iLocalTask];
 
@@ -3080,7 +3080,7 @@ class ToDoContainer extends HTMLDivElement {
           break;
         default:
       }
-    } while (iCloudTask < cloudTasks.length || iLocalTask < localTasks.length);
+    }
 
     await Promise.all(waitResult);
   }
