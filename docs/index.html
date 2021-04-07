@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html class="has-navbar-fixed-top">
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <title>LoGoCa</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#004422">
+  <link rel="apple-touch-icon" sizes="192x192" href="img/logo192.png">
+  <link rel="icon" type="image/svg+xml" href="img/favicon.svg" id="favicon">
+  <script defer src="index.js" onload="appInit()"></script>
+  <script defer src="https://apis.google.com/js/api.js" onload="handleClientLoad()"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <!-- icons >> -->
+  <svg aria-hidden="true" style="position: absolute; width: 0; height: 0; overflow: hidden;" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <style>
+      symbol{stroke-width: 0;fill: currentColor;}
+    </style>
+    <defs>
+      <symbol id="icon-add-solid" viewBox="0 0 20 20">
+        <path d="M11 9v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM10 20c-5.523 0-10-4.477-10-10s4.477-10 10-10v0c5.523 0 10 4.477 10 10s-4.477 10-10 10v0z"></path>
+      </symbol>
+      <symbol id="icon-add-outline" viewBox="0 0 20 20">
+        <path d="M11 9h4v2h-4v4h-2v-4h-4v-2h4v-4h2v4zM10 20c-5.523 0-10-4.477-10-10s4.477-10 10-10v0c5.523 0 10 4.477 10 10s-4.477 10-10 10v0zM10 18c4.418 0 8-3.582 8-8s-3.582-8-8-8v0c-4.418 0-8 3.582-8 8s3.582 8 8 8v0z"></path>
+      </symbol>
+      <symbol id="icon-cog" viewBox="0 0 32 32">
+        <path d="M29.181 19.070c-1.679-2.908-0.669-6.634 2.255-8.328l-3.145-5.447c-0.898 0.527-1.943 0.829-3.058 0.829-3.361 0-6.085-2.742-6.085-6.125h-6.289c0.008 1.044-0.252 2.103-0.811 3.070-1.679 2.908-5.411 3.897-8.339 2.211l-3.144 5.447c0.905 0.515 1.689 1.268 2.246 2.234 1.676 2.903 0.672 6.623-2.241 8.319l3.145 5.447c0.895-0.522 1.935-0.82 3.044-0.82 3.35 0 6.067 2.725 6.084 6.092h6.289c-0.003-1.034 0.259-2.080 0.811-3.038 1.676-2.903 5.399-3.894 8.325-2.219l3.145-5.447c-0.899-0.515-1.678-1.266-2.232-2.226zM16 22.479c-3.578 0-6.479-2.901-6.479-6.479s2.901-6.479 6.479-6.479c3.578 0 6.479 2.901 6.479 6.479s-2.901 6.479-6.479 6.479z"></path>
+      </symbol>
+      <symbol id="icon-plus" viewBox="0 0 32 32">
+        <path d="M31 12h-11v-11c0-0.552-0.448-1-1-1h-6c-0.552 0-1 0.448-1 1v11h-11c-0.552 0-1 0.448-1 1v6c0 0.552 0.448 1 1 1h11v11c0 0.552 0.448 1 1 1h6c0.552 0 1-0.448 1-1v-11h11c0.552 0 1-0.448 1-1v-6c0-0.552-0.448-1-1-1z"></path>
+      </symbol>
+      <symbol id="icon-info" viewBox="0 0 32 32">
+        <path d="M14 9.5c0-0.825 0.675-1.5 1.5-1.5h1c0.825 0 1.5 0.675 1.5 1.5v1c0 0.825-0.675 1.5-1.5 1.5h-1c-0.825 0-1.5-0.675-1.5-1.5v-1z"></path>
+        <path d="M20 24h-8v-2h2v-6h-2v-2h6v8h2z"></path>
+        <path d="M16 0c-8.837 0-16 7.163-16 16s7.163 16 16 16 16-7.163 16-16-7.163-16-16-16zM16 29c-7.18 0-13-5.82-13-13s5.82-13 13-13 13 5.82 13 13-5.82 13-13 13z"></path>
+      </symbol>
+      <symbol id="icon-play-outline" viewBox="0 0 32 32">
+        <path d="M16 0c-8.837 0-16 7.163-16 16s7.163 16 16 16 16-7.163 16-16-7.163-16-16-16zM16 29c-7.18 0-13-5.82-13-13s5.82-13 13-13 13 5.82 13 13-5.82 13-13 13zM12 9l12 7-12 7z"></path>
+      </symbol>
+      <symbol id="icon-stop-outline" viewBox="0 0 32 32">
+        <path d="M16 0c-8.837 0-16 7.163-16 16s7.163 16 16 16 16-7.163 16-16-7.163-16-16-16zM16 29c-7.18 0-13-5.82-13-13s5.82-13 13-13 13 5.82 13 13-5.82 13-13 13zM10 10h12v12h-12z"></path>
+      </symbol>
+      <symbol id="icon-play" viewBox="0 0 32 32">
+        <path d="M6 4l20 12-20 12z"></path>
+      </symbol>
+      <symbol id="icon-stop" viewBox="0 0 32 32">
+        <path d="M4 4h24v24h-24z"></path>
+      </symbol>
+      <symbol id="icon-github" viewBox="0 0 32 32">
+        <path d="M16 0.395c-8.836 0-16 7.163-16 16 0 7.069 4.585 13.067 10.942 15.182 0.8 0.148 1.094-0.347 1.094-0.77 0-0.381-0.015-1.642-0.022-2.979-4.452 0.968-5.391-1.888-5.391-1.888-0.728-1.849-1.776-2.341-1.776-2.341-1.452-0.993 0.11-0.973 0.11-0.973 1.606 0.113 2.452 1.649 2.452 1.649 1.427 2.446 3.743 1.739 4.656 1.33 0.143-1.034 0.558-1.74 1.016-2.14-3.554-0.404-7.29-1.777-7.29-7.907 0-1.747 0.625-3.174 1.649-4.295-0.166-0.403-0.714-2.030 0.155-4.234 0 0 1.344-0.43 4.401 1.64 1.276-0.355 2.645-0.532 4.005-0.539 1.359 0.006 2.729 0.184 4.008 0.539 3.054-2.070 4.395-1.64 4.395-1.64 0.871 2.204 0.323 3.831 0.157 4.234 1.026 1.12 1.647 2.548 1.647 4.295 0 6.145-3.743 7.498-7.306 7.895 0.574 0.497 1.085 1.47 1.085 2.963 0 2.141-0.019 3.864-0.019 4.391 0 0.426 0.288 0.925 1.099 0.768 6.354-2.118 10.933-8.113 10.933-15.18 0-8.837-7.164-16-16-16z"></path>
+      </symbol>
+      <symbol id="icon-quill" viewBox="0 0 32 32">
+        <path d="M0 32c4-12 14.469-32 32-32-8.219 6.594-12 22-18 22s-6 0-6 0l-6 10h-2z"></path>
+      </symbol>
+      <symbol id="icon-accessibility" viewBox="0 0 32 32">
+        <path d="M13 3c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.657-1.343 3-3 3s-3-1.343-3-3z"></path>
+        <path d="M20 10l10.3-4.443-0.743-1.857-12.557 4.3h-2l-12.557-4.3-0.743 1.857 10.3 4.443v8l-4.102 13.268 1.87 0.709 5.804-12.977h0.857l5.804 12.977 1.87-0.709-4.102-13.268z"></path>
+      </symbol>
+      <symbol id="icon-left" viewBox="0 0 17 28">
+        <path d="M9.797 21.5c0 0.125-0.063 0.266-0.156 0.359l-0.781 0.781c-0.094 0.094-0.234 0.156-0.359 0.156s-0.266-0.063-0.359-0.156l-7.281-7.281c-0.094-0.094-0.156-0.234-0.156-0.359s0.063-0.266 0.156-0.359l7.281-7.281c0.094-0.094 0.234-0.156 0.359-0.156s0.266 0.063 0.359 0.156l0.781 0.781c0.094 0.094 0.156 0.234 0.156 0.359s-0.063 0.266-0.156 0.359l-6.141 6.141 6.141 6.141c0.094 0.094 0.156 0.234 0.156 0.359zM15.797 21.5c0 0.125-0.063 0.266-0.156 0.359l-0.781 0.781c-0.094 0.094-0.234 0.156-0.359 0.156s-0.266-0.063-0.359-0.156l-7.281-7.281c-0.094-0.094-0.156-0.234-0.156-0.359s0.063-0.266 0.156-0.359l7.281-7.281c0.094-0.094 0.234-0.156 0.359-0.156s0.266 0.063 0.359 0.156l0.781 0.781c0.094 0.094 0.156 0.234 0.156 0.359s-0.063 0.266-0.156 0.359l-6.141 6.141 6.141 6.141c0.094 0.094 0.156 0.234 0.156 0.359z"></path>
+      </symbol>
+      <symbol id="icon-right" viewBox="0 0 15 28">
+        <path d="M9.297 15c0 0.125-0.063 0.266-0.156 0.359l-7.281 7.281c-0.094 0.094-0.234 0.156-0.359 0.156s-0.266-0.063-0.359-0.156l-0.781-0.781c-0.094-0.094-0.156-0.234-0.156-0.359s0.063-0.266 0.156-0.359l6.141-6.141-6.141-6.141c-0.094-0.094-0.156-0.234-0.156-0.359s0.063-0.266 0.156-0.359l0.781-0.781c0.094-0.094 0.234-0.156 0.359-0.156s0.266 0.063 0.359 0.156l7.281 7.281c0.094 0.094 0.156 0.234 0.156 0.359zM15.297 15c0 0.125-0.063 0.266-0.156 0.359l-7.281 7.281c-0.094 0.094-0.234 0.156-0.359 0.156s-0.266-0.063-0.359-0.156l-0.781-0.781c-0.094-0.094-0.156-0.234-0.156-0.359s0.063-0.266 0.156-0.359l6.141-6.141-6.141-6.141c-0.094-0.094-0.156-0.234-0.156-0.359s0.063-0.266 0.156-0.359l0.781-0.781c0.094-0.094 0.234-0.156 0.359-0.156s0.266 0.063 0.359 0.156l7.281 7.281c0.094 0.094 0.156 0.234 0.156 0.359z"></path>
+      </symbol>
+      <symbol id="icon-link" viewBox="0 0 28 28">
+        <path d="M22 14.5v5c0 2.484-2.016 4.5-4.5 4.5h-13c-2.484 0-4.5-2.016-4.5-4.5v-13c0-2.484 2.016-4.5 4.5-4.5h11c0.281 0 0.5 0.219 0.5 0.5v1c0 0.281-0.219 0.5-0.5 0.5h-11c-1.375 0-2.5 1.125-2.5 2.5v13c0 1.375 1.125 2.5 2.5 2.5h13c1.375 0 2.5-1.125 2.5-2.5v-5c0-0.281 0.219-0.5 0.5-0.5h1c0.281 0 0.5 0.219 0.5 0.5zM28 1v8c0 0.547-0.453 1-1 1-0.266 0-0.516-0.109-0.703-0.297l-2.75-2.75-10.187 10.187c-0.094 0.094-0.234 0.156-0.359 0.156s-0.266-0.063-0.359-0.156l-1.781-1.781c-0.094-0.094-0.156-0.234-0.156-0.359s0.063-0.266 0.156-0.359l10.187-10.187-2.75-2.75c-0.187-0.187-0.297-0.438-0.297-0.703 0-0.547 0.453-1 1-1h8c0.547 0 1 0.453 1 1z"></path>
+      </symbol>
+      <symbol id="icon-tool" viewBox="0 0 512 512">
+        <path d="M104.426,139.813l83.563,83.781c14.344-13.766,26.781-25.703,36.109-34.672l-84.297-84.5l-10.313-45.719
+        L54.27,12.985L33.629,33.642L12.988,54.282l45.719,75.219L104.426,139.813z"></path>
+        <path d="M358.363,276.298L481.926,399.47c22.781,22.766,22.781,59.688,0,82.469c-22.781,22.766-59.688,22.766-82.469,0
+        L275.895,358.767L358.363,276.298z"></path>
+        <path d="M459.957,203.407c42.547-38.609,49.656-82.484,40.141-119.484c-0.281-2.938-0.984-5.406-3.547-7.25
+        l-8.563-7.016c-1.484-1.391-3.484-2.063-5.484-1.875c-2.016,0.203-3.844,1.234-5.031,2.875l-49.25,64.031
+        c-1.375,1.891-3.594,2.969-5.922,2.891l-17.875,1.313c-1.531-0.047-3.016-0.594-4.219-1.563l-34.531-29.266
+        c-1.406-1.141-2.328-2.766-2.563-4.563l-2.141-16.188c-0.25-1.781,0.203-3.594,1.266-5.063l46.109-62.641
+        c2.094-2.875,1.688-6.859-0.906-9.281l-11.188-8.75c-2.188-2.031-4.672-1.75-8.063-1.094
+        c-31.844,6.281-86.219,37.125-100.016,79.75c-12.156,37.516-7.922,63.969-7.922,63.969c0,21.141-6.953,41.516-15.5,50.063
+        L24.504,424.923c-0.469,0.422-0.922,0.859-1.375,1.313c-19.844,19.844-19.813,52.047-0.641,71.219s51.859,19.672,71.703-0.172
+        c0.922-0.922,1.813-1.875,2.641-2.859l231.672-250.438C357.004,218.61,413.426,245.642,459.957,203.407z"></path>
+      </symbol>
+      <symbol id="icon-pencil" viewBox="0 0 24 28">
+        <path d="M5.672 24l1.422-1.422-3.672-3.672-1.422 1.422v1.672h2v2h1.672zM13.844 9.5c0-0.203-0.141-0.344-0.344-0.344-0.094 0-0.187 0.031-0.266 0.109l-8.469 8.469c-0.078 0.078-0.109 0.172-0.109 0.266 0 0.203 0.141 0.344 0.344 0.344 0.094 0 0.187-0.031 0.266-0.109l8.469-8.469c0.078-0.078 0.109-0.172 0.109-0.266zM13 6.5l6.5 6.5-13 13h-6.5v-6.5zM23.672 8c0 0.531-0.219 1.047-0.578 1.406l-2.594 2.594-6.5-6.5 2.594-2.578c0.359-0.375 0.875-0.594 1.406-0.594s1.047 0.219 1.422 0.594l3.672 3.656c0.359 0.375 0.578 0.891 0.578 1.422z"></path>
+      </symbol>
+      <symbol id="icon-arrows-v" viewBox="0 0 12 28">
+        <path d="M11 5c0 0.547-0.453 1-1 1h-2v16h2c0.547 0 1 0.453 1 1 0 0.266-0.109 0.516-0.297 0.703l-4 4c-0.187 0.187-0.438 0.297-0.703 0.297s-0.516-0.109-0.703-0.297l-4-4c-0.187-0.187-0.297-0.438-0.297-0.703 0-0.547 0.453-1 1-1h2v-16h-2c-0.547 0-1-0.453-1-1 0-0.266 0.109-0.516 0.297-0.703l4-4c0.187-0.187 0.438-0.297 0.703-0.297s0.516 0.109 0.703 0.297l4 4c0.187 0.187 0.297 0.438 0.297 0.703z"></path>
+      </symbol>
+      <symbol id="icon-tasks" viewBox="0 0 28 28">
+        <path d="M16 22h10v-2h-10v2zM10 14h16v-2h-16v2zM20 6h6v-2h-6v2zM28 19v4c0 0.547-0.453 1-1 1h-26c-0.547 0-1-0.453-1-1v-4c0-0.547 0.453-1 1-1h26c0.547 0 1 0.453 1 1zM28 11v4c0 0.547-0.453 1-1 1h-26c-0.547 0-1-0.453-1-1v-4c0-0.547 0.453-1 1-1h26c0.547 0 1 0.453 1 1zM28 3v4c0 0.547-0.453 1-1 1h-26c-0.547 0-1-0.453-1-1v-4c0-0.547 0.453-1 1-1h26c0.547 0 1 0.453 1 1z"></path>
+      </symbol>
+      <symbol id="icon-chevron-down" viewBox="0 0 28 28">
+        <path d="M26.297 12.625l-11.594 11.578c-0.391 0.391-1.016 0.391-1.406 0l-11.594-11.578c-0.391-0.391-0.391-1.031 0-1.422l2.594-2.578c0.391-0.391 1.016-0.391 1.406 0l8.297 8.297 8.297-8.297c0.391-0.391 1.016-0.391 1.406 0l2.594 2.578c0.391 0.391 0.391 1.031 0 1.422z"></path>
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 28">
+        <path d="M18.297 12.703l-6.594 6.594c-0.391 0.391-1.016 0.391-1.406 0l-4.594-4.594c-0.391-0.391-0.391-1.016 0-1.406l1.594-1.594c0.391-0.391 1.016-0.391 1.406 0l2.297 2.297 4.297-4.297c0.391-0.391 1.016-0.391 1.406 0l1.594 1.594c0.391 0.391 0.391 1.016 0 1.406zM20.5 14c0-4.688-3.813-8.5-8.5-8.5s-8.5 3.813-8.5 8.5 3.813 8.5 8.5 8.5 8.5-3.813 8.5-8.5zM24 14c0 6.625-5.375 12-12 12s-12-5.375-12-12 5.375-12 12-12 12 5.375 12 12z"></path>
+      </symbol>
+      <symbol id="icon-trashcan" viewBox="0 0 16 16">
+        <path d="M10.5 14c0.277 0 0.5-0.223 0.5-0.5v-7c0-0.277-0.223-0.5-0.5-0.5s-0.5 0.223-0.5 0.5v7c0 0.277 0.223 0.5 0.5 0.5zM5.5 14c0.276 0 0.5-0.223 0.5-0.5v-7c0-0.277-0.224-0.5-0.5-0.5s-0.5 0.223-0.5 0.5v7c0 0.277 0.224 0.5 0.5 0.5zM14.5 3h-2v-1c0-1.105-0.896-2-2-2h-5c-1.104 0-2 0.895-2 2v1h-2l-1.5 1.5c0 0.277 0.224 0.5 0.5 0.5h1.5v10c0 0.552 0.448 1 1 1h10c0.552 0 1-0.448 1-1v-10h1.5c0.277 0 0.5-0.223 0.5-0.5l-1.5-1.5zM5 2c0-0.552 0.448-1 1-1h4c0.552 0 1 0.448 1 1v1h-6v-1zM13 14.5c0 0.277-0.223 0.5-0.5 0.5h-9c-0.276 0-0.5-0.223-0.5-0.5v-9.5h10v9.5zM8 14c0.277 0 0.5-0.223 0.5-0.5v-7c0-0.277-0.223-0.5-0.5-0.5s-0.5 0.223-0.5 0.5v7c0 0.277 0.223 0.5 0.5 0.5z"></path>
+      </symbol>
+      <symbol id="icon-calendar" viewBox="0 0 20 20">
+        <path d="M17 3h-1v2h-3v-2h-6v2h-3v-2h-1c-1.101 0-2 0.9-2 2v12c0 1.1 0.899 2 2 2h14c1.1 0 2-0.9 2-2v-12c0-1.1-0.9-2-2-2zM17 17h-14v-8h14v8zM6.5 1h-2v3.5h2v-3.5zM15.5 1h-2v3.5h2v-3.5z"></path>
+      </symbol>
+    </defs>
+  </svg>
+  <!-- << icons -->
+  <section style="height:100%">
+    <nav class="navbar is-fixed-top">
+      <div class="navbar-brand is-pulled-left">
+        <img src="img/logo.svg" width="110px">
+      </div>
+      <div class="navbar-menu is-active is-shadowless p-2">
+        <div class="navbar-end  is-flex is-flex-direction-row-reverse">
+          <modal-open id="open_settings" class="mx-3 pt-1">
+            <svg class="icon" fill="#AAA"><use xlink:href="#icon-cog"></use></svg>
+          </modal-open>
+        </div>
+      </div>
+    </nav>
+    <tab-swipeable id="main">
+      <div id="tab" class="tabs is-boxed">
+        <ul class="has-background-white">
+          <li data-tab="page0"><a>
+              <svg class="icon"><use xlink:href="#icon-tool"></use></svg>
+              <span class="tab_text">Routine</span>
+          </a></li>
+          <li data-tab="page1" class="is-active"><a>
+              <svg class="icon"><use xlink:href="#icon-accessibility"></use></svg>
+              <span class="tab_text">Activities</span>
+          </a></li>
+          <li data-tab="page2" class="is-hidden"><a>
+              <svg class="icon"><use xlink:href="#icon-quill"></use></svg>
+              <span class="tab_text">Diary</span>
+          </a></li>
+          <li data-tab="page3" class=""><a>
+              <svg class="icon"><use xlink:href="#icon-tasks"></use></svg>
+              <span class="tab_text">ToDo</span>
+          </a></li>
+        </ul>
+      </div>
+      <div id="view">
+        <div data-page="page0" class="page card has-background-white-ter is-shadowless">
+          <header class="card-header">
+            <p class="card-header-title has-text-link-dark p-2">
+              <svg class="icon mr-2"><use xlink:href="#icon-tool"></use></svg>
+              <span class="">Routine</span>
+            </p>
+          </header>
+          <div is="routine-container" class="card-content p-2 is-flex" style="flex-direction: column;">
+            <button data-action="open" class="button mb-1" style="width: 6rem;"><span>新規作成</span></button>
+            <div class="box p-0 m-0" style="flex-grow: 1;">
+              <ul data-role="container" style="height:100%;overflow-y: scroll;"></ul>
+            </div>
+            <routine-modal data-role="modal" class="modal">
+              <div data-action="close" class="modal-background"></div>
+              <div class="modal-card">
+                <header class="modal-card-head p-3">
+                  <p data-role="modalTitle" class="modal-card-title is-size-6"></p>
+                  <span data-role="deleteButton" data-action="delete" class="is-clickable" title="削除">
+                    <svg class="icon mr-3" style="width:20px; height:20px;"><use xlink:href="#icon-trashcan"></use></svg>
+                  </span>
+                  <button data-action="close" class="delete" aria-label="close"></button>
+                </header>
+                <section class="modal-card-body">
+                  <input type="text" data-role="summary" class="input" placeholder="title">
+                  <quill-common data-role="description" class="quill_holder" placeholder="description"></quill-common>
+                  <div class="field">
+                    <label class="label">Event Color</label>
+                    <label class="checkbox"><input data-role="samecolor" type="checkbox">Activityと同じ色を使う</label>
+                    <eve-col data-role="color"></eve-col>
+                  </div>
+                </section>
+                <footer class="modal-card-foot">
+                  <button data-action="apply" class="button is-link">保存</button>
+                  <button data-action="close" class="button is-link is-light">キャンセル</button>
+                </footer>
+              </div>
+            </routine-modal>
+          </div>
+        </div>
+        <div data-page="page1" class="page card has-background-white-ter is-shadowless">
+          <header class="card-header">
+            <p class="card-header-title has-text-link-dark p-2">
+              <svg class="icon mr-2"><use xlink:href="#icon-accessibility"></use></svg>
+              <span class="">Activities</span>
+            </p>
+          </header>
+          <div class="card-content p-2">
+            <div id="doing" class="is-clearfix block">
+              <input type="text" is="act-summary" class="input" placeholder="title">
+              <act-description class="quill_holder" placeholder="description"></act-description>
+              <div class="is-pulled-left">
+                <time-elapsed class="is-size-1 has-text-weight-bold mx-1"></time-elapsed>
+              </div>
+              <div class="is-pulled-right">
+                <button is="act-end" class="button is-danger is-large has-text-weight-bold m-1 is-hidden"><svg class="icon" fill="#DDD"><use xlink:href="#icon-stop"></use></svg></button>
+                <button is="act-start" class="button is-primary is-large has-text-weight-bold m-1"><svg class="icon" fill="#DDD"><use xlink:href="#icon-play"></use></svg></button>
+              </div>
+            </div>
+            <div class="act_lists_container">
+              <input type="radio" id="upcoming_radio" name="which_to_show">
+              <upcoming-act-list class="act_list card is-hidden">
+                <header class="card-header">
+                  <label class="card-header-title p-1 pl-3" for="upcoming_radio">今日の予定</label>
+                </header>
+                <div class="card-content p-0">
+                  <div data-container id="upcoming">
+                    <template>
+                      <div class="message is-info">
+                        <p data-summary class="message-header  is-size-7" style="overflow-x: scroll;"></p>
+                        <div class="message-body p-0">
+                          <time data-time class="is-size-7"></time>
+                        </div>
+                        <div class="card-footer">
+                          <button data-start class="card-footer-item button is-small is-link is-inverted" style="background: transparent;">start</button>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </upcoming-act-list>
+              <input type="radio" id="done_radio" name="which_to_show" checked>
+              <done-act-list class="act_list card">
+                <header class="card-header">
+                  <label class="card-header-title p-1 pl-3" for="done_radio">最近の活動</label>
+                </header>
+                <div class="card-content p-0">
+                  <div data-container id="done">
+                  <template>
+                    <div data-failed-remove="is-link" data-failed-add="is-dark" class="message is-link">
+                      <p data-summary data-failed-add="has-text-grey-light" class="message-header is-size-7" style="overflow-x: scroll;"></p>
+                      <div class="message-body p-0">
+                        <div><time data-time data-failed-add="has-text-grey-light" class="is-size-7"></time></div>
+                        <div data-description data-failed-add="has-text-grey-light" class="content is-size-7 m-1"></div>
+                      </div>
+                      <div class="card-footer">
+                        <button data-sync data-failed-remove="is-hidden" class="card-footer-item button is-small is-danger is-inverted" style="background: transparent;">Sync</button>
+                        <button data-restart class="card-footer-item button is-small is-link is-inverted" style="background: transparent;">restart</button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+                </div>
+              </done-act-list>
+            </div>
+          </div>
+        </div>
+        <div data-page="page2" class="page is-hidden card has-background-white-ter is-shadowless">
+          <header class="card-header">
+            <p class="card-header-title has-text-link-dark p-2">
+              <svg class="icon mr-2"><use xlink:href="#icon-quill"></use></svg>
+              <span class="">Diary</span>
+            </p>
+          </header>
+          <div class="card-content  p-2">
+            <div is="diary-container" class="container">
+              <diary-nav class="is-flex is-justify-content-space-between">
+                <button data-role="yesterday" class="button"><svg class="icon has-text-grey"><use xlink:href="#icon-left"></use></svg></button>
+                <input data-role="date" type="date" class="input" min="1900-01-01" style="width:160px">
+                <button data-role="tomorrow" class="button"><svg class="icon has-text-grey"><use xlink:href="#icon-right"></use></svg></button>
+              </diary-nav>
+              <quill-common data-role="description" class="quill_holder"></quill-common>
+              <a data-role="gcalLink" class="button is-small is-pulled-right m-1" href="https://calendar.google.com/calendar/u/0/r/search?where=LoGoCa_DIARY" target="_blank" rel="noreferrer">
+                <span>日記一覧</span><span class="icon"><svg><use xlink:href="#icon-link"></use></svg></span></a>
+            </div>
+          </div>
+        </div>
+        <div data-page="page3" class="page card has-background-white-ter is-shadowless">
+          <header class="card-header is-shadowless">
+            <p class="card-header-title has-text-link-dark p-2">
+              <svg class="icon mr-2"><use xlink:href="#icon-tasks"></use></svg>
+              <span class="">ToDo</span>
+            </p>
+          </header>
+          <div is="todo-container" class="card-content p-2 is-relative">
+            <select-tasklist data-role="selectList"></select-tasklist>
+            <todo-tasks data-role="tasks">
+              <div class="mt-1 field has-addons">
+                <div class=" control">
+                  <input data-role="newTaskTitle" class="input" type="text" placeholder="新しいタスク">
+                </div>
+                <div class="control">
+                  <button data-action="add" class="button is-info">追加</button>
+                </div>
+              </div>
+              <completed-task data-role="completed" style="position: absolute; top: .5em; left: 220px;"></completed-task>
+              <div id="todo_tasks_container" data-role="container" class="box m-0"></div>
+              <task-modal data-role="modal"></task-modal>
+            </todo-tasks>
+          </div>
+        </div>
+      </div>
+    </tab-swipeable>
+  </section>
+  <settings-modal class="modal">
+    <div data-action="close" class="modal-background"></div>
+    <div class="modal-card">
+      <header class="modal-card-head p-3">
+        <p class="modal-card-title is-size-6 has-text-weight-bold">設定</p>
+        <button data-action="close" class="delete" aria-label="close"></button>
+      </header>
+      <section class="modal-card-body">
+        <div data-state="logedout">
+          <button data-action="signin" class="button is-link">Googleアカウントにサインイン</button>
+        </div>
+        <div data-state="signedin" class="block is-hidden">
+          <div class="field">
+            <label class="label">User Profile</label>
+            <div class="media control">
+              <figure class="media-left image is-32x32 mx-2">
+                <img is="user-img" class="is-rounded">
+              </figure>
+              <div class="media-content">
+                <user-email class="has-text-weight-medium is-size-7"></user-email>
+              </div>
+              <div class="media-right">
+                <button data-action="logout" class="button is-small">SignOut</button>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label class="label">予定を取得するカレンダー</label>
+            <div class="ml-2 control">
+              <label class="checkbox"><input data-role="upcomingEnabled" type="checkbox">予定の取得を有効化</label>
+            </div>
+            <div class="ml-2 control">
+              <div class="select">
+                <select is="select-cal" data-role="upcomingCalendarId" style="width:150px">
+                  <option value="primary">default</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label class="label">ログを記録するカレンダー</label>
+            <div claass="ml-2 control" style="display:flex">
+              <div class="select mr-2">
+                <select is="select-log" data-role="logCalendarId" style="width:150px">
+                  <option value="primary">default</option>
+                </select>
+              </div>
+              <div class="field has-addons">
+                <div class="control">
+                  <input is="new-cal" id="new_calendar" class="input" type="text" placeholder="新規作成">
+                </div>
+                <div class="control">
+                  <button is="add-cal" class="button is-info  has-text-light"><svg class="icon"><use xlink:href="#icon-add-outline"></use></svg></button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label class="label">Event Color</label>
+            <eve-col data-role="colorId"></eve-col>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">
+            <span class="icon is-small"><svg><use xlink:href="#icon-tool"></use></svg></span>
+            <span>Routine</span>
+            <tool-tip class="icon is-small has-text-info" title="繰り返し行うActivityを登録します。"></tool-tip>
+          </label>
+          <div class="ml-2 control">
+            <label class="checkbox"><input data-role="routineEnabled" type="checkbox">Routineを有効化</label>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">
+            <span class="icon is-small"><svg><use xlink:href="#icon-tasks"></use></svg></span>
+            <span>ToDoリスト</span>
+            <tool-tip class="icon is-small has-text-info" title="Googleアカウントにサインインした場合、GoogleのToDoリストと同期します。"></tool-tip>
+          </label>
+          <div class="ml-2 control">
+            <label class="checkbox"><input data-role="todoEnabled" type="checkbox">ToDoリストを有効化</label>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">
+            <span class="icon is-small"><svg><use xlink:href="#icon-quill"></use></svg></span>
+            <span>Diary</span>
+            <tool-tip class="icon is-small has-text-info" title="Googleアカウントにサインインした場合、終日のイベントとしてGoogle Calendarに登録します。"></tool-tip>
+          </label>
+          <div class="ml-2 control">
+            <label class="checkbox"><input data-role="diaryEnabled" type="checkbox">Diaryを有効化</label>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">
+            <span>通知</span>
+            <tool-tip class="icon is-small has-text-info" title="通知バーなどに実行中のActivityを表示し、すばやくアクセスできるようにします。<br>初回はデバイスで許可する必要があります。"></tool-tip>
+          </label>
+          <div class="ml-2 control">
+            <label class="checkbox"><input is="notification-check" data-role="notificationEnabled" type="checkbox">実行中Activityの通知を有効化</label>
+          </div>
+        </div>
+      </section>
+      <footer class="modal-card-foot">
+        <button data-action="apply" class="button is-link">保存</button>
+        <button data-action="close" class="button is-link is-light">キャンセル</button>
+      </footer>
+    </div>
+  </settings-modal>
+  <notice-show id="notification" class="message is-danger">
+    <div class="message-header p-1 is-size-7">
+      <p>Notice!</p>
+    </div>
+    <div id="notice_message" class="message-body p-3 is-size-7"></div>
+  </notice-show>
+</body>
+
+</html>
