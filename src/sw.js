@@ -98,27 +98,76 @@ const notificationClickHandler = new class {
 }
 
 const cacheHandler = new class {
-  cacheVersion = "1";
   cacheItems = [
-    "/",
-    "/index.js",
-    "/style.css",
-    "/favicon.ico",
-    "/img/logo.svg",
-    "/img/favicon.svg",
-    "/img/logo72.png",
-    "/img/logo192.png"
+    {
+      version: "2",
+      urls: [
+        "/",
+        "/index.js",
+        "/style.css"
+      ]
+    },
+    {
+      version: "1",
+      urls: [
+        "/favicon.ico",
+        "/img/logo.svg",
+        "/img/favicon.svg",
+        "/img/logo72.png",
+        "/img/logo192.png"
+      ]
+    },
   ];
+
   constructor() {
     self.addEventListener('install', this.addCache.bind(this));
+    self.addEventListener('activate', this.removeCache.bind(this));
     self.addEventListener('fetch', this.proxy);
   }
   addCache(e) {
     e.waitUntil(
-      caches.open(this.cacheVersion)
-        .then(cache => cache.addAll(this.cacheItems))
+      Promise.all(
+        this.cacheItems.map(item => {
+          return caches.open(item.version).then(cache => {
+            return Promise.all(
+              item.urls.map(async url => {
+                if (await cache.match(url)) {
+                  return Promise.resolve();
+                } else {
+                  return cache.add(url);
+                }
+              })
+            )
+          })
+        })
+      )
     );
   }
+  removeCache(e) {
+    e.waitUntil(
+      caches.keys().then(keys => {
+        return Promise.all(keys.map(key => {
+          const cacheItem = this.cacheItems.find(items => items.version === key);
+          if (!cacheItem) {
+            return caches.delete(key);
+          } else {
+            return caches.open(key).then(async cache => {
+              const storedUrls = await cache.keys();
+              await Promise.all(storedUrls.map(storedUrl => {
+                const using = cacheItem.urls.find(url => url === new URL(storedUrl.url).pathname);
+                if (using) {
+                  return Promise.resolve();
+                } else {
+                  return cache.delete(storedUrl);
+                }
+              }))
+            })
+          }
+        }))
+      })
+    );
+  }
+
   proxy(e) {
     e.respondWith(
       caches.match(e.request)
