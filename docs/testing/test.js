@@ -69,6 +69,11 @@ const testParams = {
         }
     },
     calendarsInsert: true,
+    tasksRet: {
+        result: {
+            items: []
+        }
+    }
 };
 
 const gapi = {
@@ -156,6 +161,21 @@ const gapi = {
                         }, 1000)
                     })
                 }
+            }
+        },
+        tasks: {
+            tasklists: {
+                list: function () { return Promise.resolve(testParams.tasksRet) },
+                insert: function () { return Promise.resolve(testParams.tasksRet) },
+                update: function () { return Promise.resolve(testParams.tasksRet) },
+                delete: function () { return Promise.resolve(testParams.tasksRet) },
+            },
+            tasks: {
+                list: function () { return Promise.resolve(testParams.tasksRet) },
+                insert: function () { return Promise.resolve(testParams.tasksRet) },
+                update: function () { return Promise.resolve(testParams.tasksRet) },
+                move: function () { return Promise.resolve(testParams.tasksRet) },
+                delete: function () { return Promise.resolve(testParams.tasksRet) },
             }
         }
     },

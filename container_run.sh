@@ -8,5 +8,5 @@ fi
 
 docker run -dit --name $NAME \
 	--restart=always \
-	-v $PWD/dist:/usr/share/nginx/html \
+	-v $PWD/docs:/usr/share/nginx/html \
 	nginx:stable-alpine
