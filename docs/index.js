@@ -2858,7 +2858,7 @@ class RoutineModal extends HTMLElement {
   open(routine, isEdit) {
     if (isEdit) {
       this.modalTitle.innerHTML = "編集";
-      this.deleteButton.style.display = "initial";
+      this.deleteButton.style.display = "flex";
     } else {
       this.modalTitle.innerHTML = "新しいRoutine";
       this.deleteButton.style.display = "none";
