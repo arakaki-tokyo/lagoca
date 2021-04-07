@@ -1,33 +1,33 @@
 #!/bin/bash
 
 PRJROOT=$(pwd)
+SRC=${PRJROOT}/src
 DIST=${PRJROOT}/docs
-TMPDIR=${PRJROOT}/tmp
 HTML=index.html
 JS=index.js
-BUNDLE_CSS_JS=${DIST}/bundle_css.js
+BUNDLE_CSS_JS=${SRC}/bundle_css.js
+BUNDLE_CSS_JS_OUT=${DIST}/bundle_css.js
 QUILL=${PRJROOT}/node_modules/quill/dist/quill.min.js
 SORTABLEJS=${PRJROOT}/node_modules/sortablejs/Sortable.min.js
 
+cp -r ${SRC} ${DIST}
+
 # bundle js files
-mkdir ${TMPDIR}
-mv ${DIST}/${JS} ${TMPDIR}
-cat ${QUILL} ${SORTABLEJS} ${TMPDIR}/${JS} | sed '/sourceMap/d' > ${DIST}/${JS}
+cat ${QUILL} ${SORTABLEJS} ${SRC}/${JS} | sed '/sourceMap/d' > ${DIST}/${JS}
 
 # conduct purgecss on bulma css
 purgecss --css node_modules/bulma/css/bulma.min.css \
     --content ${DIST}/${JS} ${DIST}/${HTML} \
-    --output ${TMPDIR}
+    --output ${SRC}
 
 sleep 5
 
 # bundle css files
 cat << EOS > ${BUNDLE_CSS_JS}
-import '${TMPDIR}/bulma.min.css';
+import '${SRC}/bulma.min.css';
 import '../node_modules/quill/dist/quill.snow.css';
-import './style.css';
+import '${SRC}/style.css';
 EOS
 
 webpack
-rm ${BUNDLE_CSS_JS}
-rm -rf ${TMPDIR}
+rm ${BUNDLE_CSS_JS} ${BUNDLE_CSS_JS_OUT}
