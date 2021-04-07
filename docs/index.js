@@ -293,16 +293,6 @@ const idb = new class {
   /**
    * @return {Promise<Array<Diary>>} 
    */
-  getUnsyncedDiaries() {
-    return this.db.then(db => {
-      const req = db.transaction(OSs.Diary.name, "readonly")
-        .objectStore(OSs.Diary.name).index(OSs.Diary.index[0].keyPath).getAll(FALSE);
-      return new Promise((resolve, reject) => {
-        req.onsuccess = (ev) => resolve(ev.target.result);
-        req.onerrors = (ev) => reject(ev);
-      })
-    });
-  }
   syncDiary(diary) {
     return this.db.then(db => {
       const req = db.transaction(OSs.Diary.name, "readwrite").objectStore(OSs.Diary.name).openCursor(diary.date);
@@ -2601,28 +2591,30 @@ class DiaryContainer extends HTMLDivElement {
   descChange;
   calendarId;
   isSignedIn;
+  /** @type {Settings}  */settings;
   connectedCallback() {
     Store.onChange(storeKeys.settings, this);
     Store.onChange(storeKeys.isSignedIn, this);
     this.date = this.querySelector("diary-nav");
     this.desc = this.querySelector("[data-role='description']");
+    this.linkButton = this.querySelector("[data-role='gcalLink']");
+    this.descChange = this._descChange.bind(this);
+    this.date.onchange = e => this.dateChange(e.target.value);
+    this.dateChange(this.date.value);
   }
-  update({ key, value }) {
+  async update({ key, value }) {
     switch (key) {
-
       case storeKeys.settings:
         this.calendarId = value.logCalendarId;
-        break;
+      // don't break
       case storeKeys.isSignedIn:
-        if (this.isSignedIn || !value) return;
-        this.isSignedIn = value;
-        this.fetch().then(() => {
-          this.date.onchange = e => this.dateChange(e.target.value);
-          this.dateChange(this.date.value);
-          this.descChange = this._descChange.bind(this);
+        this[key] = value;
+        this.linkButton.style.visibility = value ? "visible" : "hidden";
+        if (this.isSignedIn && this.settings.diaryEnabled) {
+          await this.fetch();
+          this.checkUnsynced();
+        }
 
-          Cron.add(60_000, this.checkUnsynced.bind(this));
-        })
     }
   }
   dateChange(date) {
@@ -2642,7 +2634,7 @@ class DiaryContainer extends HTMLDivElement {
   _descChange(e) {
     if (e.target.value === "<p><br></p>") {
       idb.getDiary(this.date.value).then(diary => {
-        if (diary.id) {
+        if (diary.id && this.isSignedIn) {
           API.deleteEvent({ calendarId: diary.calendarId, eventId: diary.id });
         }
         idb.deleteDiary(this.date.value);
@@ -2655,10 +2647,14 @@ class DiaryContainer extends HTMLDivElement {
         updateDiary.isSynced = FALSE;
         return updateDiary;
       })
+      if (this.isSignedIn) {
+        clearTimeout(this.timeoutId);
+        this.timeoutId = setTimeout(() => this.checkUnsynced(), 10_000);
+      }
     }
   }
   checkUnsynced() {
-    idb.getUnsyncedDiaries().then(list => {
+    idb.getIndexAllDiary("isSynced", FALSE).then(list => {
       list.forEach(diary => {
         const syncMethod = diary.id ? API.updateAllDayEvent : API.insertAllDayEvent;
         const APIParam = {
@@ -2697,24 +2693,23 @@ class DiaryContainer extends HTMLDivElement {
       timeMax,
       timeMin,
       q: this.DIARY_LABEL
-    })
-      .then(res => {
-        res.result.items.forEach(item => {
-          if (!item.start.date) return;
+    }).then(res => {
+      res.result.items.forEach(item => {
+        if (!item.start.date) return;
 
-          const date = new Date(item.start.date);
-          date.setHours(0, 0, 0, 0);
-          idb.syncDiary(new Diary({
-            calendarId: this.calendarId,
-            date,
-            id: item.id,
-            value: item.description,
-            timestamp: new Date(item.updated).getTime(),
-            isSynced: TRUE,
-            link: item.htmlLink
-          }))
-        })
+        const date = new Date(item.start.date);
+        date.setHours(0, 0, 0, 0);
+        idb.syncDiary(new Diary({
+          calendarId: this.calendarId,
+          date,
+          id: item.id,
+          value: item.description,
+          timestamp: new Date(item.updated).getTime(),
+          isSynced: TRUE,
+          link: item.htmlLink
+        }))
       })
+    })
   }
 }
 /**
@@ -2858,7 +2853,7 @@ class RoutineModal extends HTMLElement {
   open(routine, isEdit) {
     if (isEdit) {
       this.modalTitle.innerHTML = "編集";
-      this.deleteButton.style.display = "initial";
+      this.deleteButton.style.display = "flex";
     } else {
       this.modalTitle.innerHTML = "新しいRoutine";
       this.deleteButton.style.display = "none";
@@ -2919,15 +2914,28 @@ class ToDoContainer extends HTMLDivElement {
   }
   connectedCallback() {
     Store.onChange(storeKeys.isSignedIn, this);
+    Store.onChange(storeKeys.settings, this);
 
     this.querySelectorAll("[data-role]").forEach(elm => {
       this[elm.dataset.role] = elm;
     })
     this.selectList.addEventListener("selectlist", this._selectListHandler.bind(this));
   }
+  /**
+   * @param {Object} object
+   * @param {Settings | Boolean} object.value
+   * @memberof ToDoContainer
+   */
   update({ key, value }) {
-    if (value) {
-      this.synchronize();
+    switch (key) {
+      case storeKeys.isSignedIn:
+      case storeKeys.settings:
+        this[key] = value;
+        if (this.isSignedIn && this.settings.todoEnabled) {
+          this.synchronize();
+        }
+        break;
+      default:
     }
   }
   async synchronize() {
@@ -2948,7 +2956,7 @@ class ToDoContainer extends HTMLDivElement {
     const sameIdExsist = 0;
     const onlyCloud = 1;
     const onlyLocal = 2;
-    do {
+    while (iCloudList < cloudTaskLists.length || iLocalList < localTaskLists.length) {
       const cTaskList = cloudTaskLists[iCloudList];
       const lTaskList = localTaskLists[iLocalList];
 
@@ -2984,7 +2992,7 @@ class ToDoContainer extends HTMLDivElement {
           break;
         default:
       }
-    } while (iCloudList < cloudTaskLists.length || iLocalList < localTaskLists.length);
+    }
     await Promise.all(waitResult);
 
     // tasks synchronize
@@ -3025,7 +3033,7 @@ class ToDoContainer extends HTMLDivElement {
     const onlyCloud = 1;
     const onlyLocal = 2;
 
-    do {
+    while (iCloudTask < cloudTasks.length || iLocalTask < localTasks.length) {
       const cTask = cloudTasks[iCloudTask];
       const lTask = localTasks[iLocalTask];
 
@@ -3074,7 +3082,7 @@ class ToDoContainer extends HTMLDivElement {
           break;
         default:
       }
-    } while (iCloudTask < cloudTasks.length || iLocalTask < localTasks.length);
+    }
 
     await Promise.all(waitResult);
   }
