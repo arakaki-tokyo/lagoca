@@ -78,7 +78,7 @@ const testParams = {
 
 const gapi = {
     var: {
-        isSignIn: true,
+        isSignIn: false,
         listener: null
     },
     load: (arg1, arg2) => {
@@ -128,6 +128,10 @@ const gapi = {
                             reject();
                     })
                 },
+                delete: (arg) => {
+                    myLog("events.delete");
+                    return Promise.resolve();
+                },
             },
             calendarList: {
                 list: () => {
@@ -165,17 +169,17 @@ const gapi = {
         },
         tasks: {
             tasklists: {
-                list: function () { return Promise.resolve(testParams.tasksRet) },
-                insert: function () { return Promise.resolve(testParams.tasksRet) },
-                update: function () { return Promise.resolve(testParams.tasksRet) },
-                delete: function () { return Promise.resolve(testParams.tasksRet) },
+                list: function () { myLog("tasks"); return Promise.resolve(testParams.tasksRet) },
+                insert: function () { myLog("tasks"); return Promise.resolve(testParams.tasksRet) },
+                update: function () { myLog("tasks"); return Promise.resolve(testParams.tasksRet) },
+                delete: function () { myLog("tasks"); return Promise.resolve(testParams.tasksRet) },
             },
             tasks: {
-                list: function () { return Promise.resolve(testParams.tasksRet) },
-                insert: function () { return Promise.resolve(testParams.tasksRet) },
-                update: function () { return Promise.resolve(testParams.tasksRet) },
-                move: function () { return Promise.resolve(testParams.tasksRet) },
-                delete: function () { return Promise.resolve(testParams.tasksRet) },
+                list: function () { myLog("tasks"); return Promise.resolve(testParams.tasksRet) },
+                insert: function () { myLog("tasks"); return Promise.resolve(testParams.tasksRet) },
+                update: function () { myLog("tasks"); return Promise.resolve(testParams.tasksRet) },
+                move: function () { myLog("tasks"); return Promise.resolve(testParams.tasksRet) },
+                delete: function () { myLog("tasks"); return Promise.resolve(testParams.tasksRet) },
             }
         }
     },
