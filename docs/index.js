@@ -2919,15 +2919,28 @@ class ToDoContainer extends HTMLDivElement {
   }
   connectedCallback() {
     Store.onChange(storeKeys.isSignedIn, this);
+    Store.onChange(storeKeys.settings, this);
 
     this.querySelectorAll("[data-role]").forEach(elm => {
       this[elm.dataset.role] = elm;
     })
     this.selectList.addEventListener("selectlist", this._selectListHandler.bind(this));
   }
+  /**
+   * @param {Object} object
+   * @param {Settings | Boolean} object.value
+   * @memberof ToDoContainer
+   */
   update({ key, value }) {
-    if (value) {
-      this.synchronize();
+    switch (key) {
+      case storeKeys.isSignedIn:
+      case storeKeys.settings:
+        this[key] = value;
+        if (this.isSignedIn && this.settings.todoEnabled) {
+          this.synchronize();
+        }
+        break;
+      default:
     }
   }
   async synchronize() {
