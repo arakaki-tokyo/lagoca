@@ -4418,7 +4418,7 @@ const coordinator = new class {
 }
 const workerManager = new class {
   doingAct;
-  settings;
+  notificationEnabled;
   registration;
   serviceWorker;
   constructor() {
@@ -4431,7 +4431,6 @@ const workerManager = new class {
         .then(registration => {
           this.registration = registration;
           this.serviceWorker = registration.active;
-          this.proc();
         })
         .catch(error => console.log('Service worker registration failed, error:', error));
     }
@@ -4439,21 +4438,33 @@ const workerManager = new class {
   update({ key, value }) {
     switch (key) {
       case storeKeys.doingAct:
-      case storeKeys.settings:
         this[key] = value;
-        this.proc();
+        if (!this.notificationEnabled) return;
+        if (value) {
+          this._showNotification();
+        } else {
+          this._closeNotification();
+        }
+        break;
+      case storeKeys.settings:
+        if (this.notificationEnabled === value.notificationEnabled) return;
+        if (value.notificationEnabled && this.doingAct) {
+          this._showNotification();
+        } else {
+          this._closeNotification();
+        }
+        this.notificationEnabled = value.notificationEnabled;
         break;
       default:
     }
   }
-  proc() {
-    if (this.serviceWorker && this.settings.notificationEnabled) {
-      if (this.doingAct) {
-        this.serviceWorker.postMessage(this.doingAct);
-      } else {
-        this.serviceWorker.postMessage(null);
-      }
-    }
+  _showNotification() {
+    if (!this.serviceWorker) return;
+    this.serviceWorker.postMessage(this.doingAct);
+  }
+  _closeNotification() {
+    if (!this.serviceWorker) return;
+    this.serviceWorker.postMessage(null);
   }
   recieve(e) {
     Store.set(storeKeys.sw, e.data);
