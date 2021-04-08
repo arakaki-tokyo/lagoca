@@ -1068,7 +1068,6 @@ class TaskList {
   /** @type {Number} */   order
   /** @type {Boolean} */  isSynced;
   /** @type {SyncAction} */  action;
-  /** @type {Boolean} */  isPrimary;
 
   /** 
   * @param {object}   object
@@ -1078,7 +1077,6 @@ class TaskList {
   * @param {Number}   object.order
   * @param {Boolean}  [object.isSynced]
   * @param {SyncAction}   object.action
-  * @param {Boolean}  [object.isPrimary]
   */
   constructor({
     id,
@@ -1087,7 +1085,6 @@ class TaskList {
     order,
     isSynced = false,
     action,
-    isPrimary = false
   }) {
     this.id = id;
     this.title = title;
@@ -1095,7 +1092,6 @@ class TaskList {
     this.order = order;
     this.isSynced = isSynced;
     this.action = action;
-    this.isPrimary = isPrimary;
   }
   static fromAPI(obj) {
     return new TaskList({
@@ -3222,6 +3218,8 @@ class SelectTaskList extends HTMLElement {
     new Sortable(this.sortable, {
       animation: 150,
       draggable: ".sortable_item",
+      delay: 60,
+      delayOnTouchOnly: true,
       onUpdate: evt => this._updateOrder()
     });
   }
@@ -3268,10 +3266,12 @@ class SelectTaskList extends HTMLElement {
     });
   }
   _renderList(taskList, isActive) {
-    if (isActive) this.currentListName.innerHTML = taskList.title;
     const taskListItem = document.createElement("tasklist-item");
     taskListItem.init(taskList);
-    if (isActive) taskListItem.activate();
+    if (isActive) {
+      this.currentListName.innerHTML = taskList.title;
+      taskListItem.activate();
+    }
     this.sentinel.insertAdjacentElement('beforebegin', taskListItem);
     return taskListItem;
   }
@@ -3340,11 +3340,10 @@ class TaskListItem extends HTMLElement {
     this.id = taskList.id;
     this.title = taskList.title;
     this.setAttribute("data-action", "select");
-    this.classList.add("dropdown-item", "sortable_item")
+    this.classList.add("dropdown-item", "sortable_item", "is-flex", "pr-2");
     this.innerHTML = `
-      <span data-action="edit" class="button"><svg class="icon has-text-danger-dark is-clickable"><use xlink:href="#icon-pencil"></use></svg></span>
-      <span data-role="listTitle">${taskList.title}</span>
-      ${taskList.isPrimary ? "" : '<span class="delete" data-action="delete"></span>'}
+    <span data-role="listTitle">${taskList.title}</span>
+    <span data-action="edit" class="button p-0"><svg class="has-text-danger-dark" width="16" height="16"><use xlink:href="#icon-pencil"></use></svg></span>
     `;
 
     this.querySelectorAll("[data-role]").forEach(elm => {
@@ -3365,7 +3364,7 @@ class TaskListItem extends HTMLElement {
   _edit(e) {
     this.dispatchEvent(new CustomEvent("tasklistedit", { bubbles: true }));
   }
-  async _delete(e) {
+  async delete(e) {
     try {
       await ToDoUtils.deleteTaskList(this.taskList);
     } catch (e) {
@@ -3380,6 +3379,7 @@ class TaskListItem extends HTMLElement {
 /**
  * taskListのモーダル
  * - `data-action="close"`属性：クリックされるとモーダルを閉じる
+ * - `data-action="delete"`属性：クリックされるとtaskListを削除
  * - `data-action="apply"`属性：クリックされると設定を保存
  * - `data-role="header"`属性：モーダルのヘッダー
  * - `data-role="listTitle"`属性：taskListのタイトル
@@ -3395,6 +3395,9 @@ class TaskListModal extends HTMLElement {
         <div class="modal-card" style="width: 300px">
           <header class="modal-card-head p-3">
             <p data-role="header" class="modal-card-title is-size-6"></p>
+            <span data-role="deleteButton" data-action="delete" class="is-flex is-clickable mr-3" title="削除">
+              <svg width="20" height="20"><use xlink:href="#icon-trashcan"></use></svg>
+            </span>
             <button data-action="close" class="delete" aria-label="close"></button>
           </header>
           <section class="modal-card-body">
@@ -3424,16 +3427,23 @@ class TaskListModal extends HTMLElement {
     if (taskListItem) {
       this.editingTaskListItem = taskListItem;
       this.editingTaskList = { ...taskListItem.taskList };
-      this.header.innerHTML = "名前の変更";
+      this.header.innerHTML = "名前の変更・削除";
+      this.deleteButton.style.visibility = "visible";
       this.listTitle.value = taskListItem.taskList.title;
     } else {
       this.header.innerHTML = "新規作成";
+      this.deleteButton.style.visibility = "hidden";
       this.editingTaskList = new TaskList({});
     }
   }
   _close() {
     this.classList.remove("is-active");
     this.listTitle.value = "";
+  }
+  _delete() {
+    this.editingTaskListItem.delete();
+    delete this.editingTaskListItem;
+    this._close();
   }
   async _apply() {
     this.editingTaskList.isSynced = false;
@@ -3503,14 +3513,20 @@ class TaskItem extends HTMLElement {
       this.classList.add("box");
       this.complete.addEventListener("mouseenter", this._hoverHandler.bind(this));
       this.complete.addEventListener("mouseleave", this._hoverHandler.bind(this));
+      this.subTaskItemList.addEventListener("taskdelete", e => {
+        e.stopPropagation();
+        setTimeout(() => this.mainArea.innerHTML = this._renderMain(this.task), 0);
+      });
       this.subTaskItemList.addEventListener("taskincomplete", e => {
         e.stopPropagation();
         this.subTaskItemList.insertAdjacentElement("afterbegin", e.target);
+        this.mainArea.innerHTML = this._renderMain(this.task);
         this._updateOrder();
       })
       this.subTaskItemList.addEventListener("taskcomplete", e => {
         e.stopPropagation();
         this.subTaskItemList.insertAdjacentElement("beforeend", e.target);
+        this.mainArea.innerHTML = this._renderMain(this.task);
         this._updateOrder();
       })
     }
@@ -3545,6 +3561,8 @@ class TaskItem extends HTMLElement {
             "is-warning" :
             "is-primary" :
         "";
+    const subTaskLen = this.subTaskItemList ? this.subTaskItemList.children.length : 0;
+    const subTaskCompLen = subTaskLen > 0 ? [...this.subTaskItemList.children].filter(i => TaskStatus.completed.isSame(i.task.status)).length : 0;
     return `
       ${task.parent ? "" : '<div class="task_details sortable-handle"><span class="button"><svg class="icon"><use xlink:href="#icon-arrows-v"></use></svg></span></div>'}
       <div ${isComp ? "" : 'data-action="start"'} class="task_details"><button data-role="start" class="button" ${isComp ? "disabled" : ""}><svg class="icon has-text-primary"><use xlink:href="#icon-play-outline"></use></svg></button></div>
@@ -3553,16 +3571,24 @@ class TaskItem extends HTMLElement {
         `<p class="task_title_text has-text-weight-bold"><a href="${task.links[0].link}" target="_blank" rel="noreferrer">${task.title}</a></p>` :
         `<p class="task_title_text has-text-weight-bold">${task.title}</p>`
       }
-         ${isComp || task.due ?
-        `<div class="tags has-addons">
-          <span class="tag ${isComp ? "" : "is-light"} ${fontColor}">
-            <svg style="width:15px;height:15px"><use xlink:href="${isComp ? '#icon-check' : '#icon-calendar'}"></use></svg>
-          </span>
-         ${isComp ?
-          `<span class="tag ${fontColor} is-light">${new MyDate(task.completed).strftime("%m/%d %H:%M")}</span>` :
-          `<span class="tag ${fontColor}">${new MyDate(task.due).strftime("%m/%d")}</span>`
+        ${isComp || task.due ?
+        `<div class="tags has-addons mr-1">
+            <span class="tag  p-1 ${isComp ? "" : "is-light"} ${fontColor}">
+              <svg style="width:15px;height:15px"><use xlink:href="${isComp ? '#icon-check' : '#icon-calendar'}"></use></svg>
+            </span>
+            ${isComp ?
+          `<span class="tag  p-1 ${fontColor} is-light">${new MyDate(task.completed).strftime("%m/%d %H:%M")}</span>` :
+          `<span class="tag  p-1 ${fontColor}">${new MyDate(task.due).strftime("%m/%d")}</span>`
         }
-       </div>`: ""}
+          </div>`: ""
+      }
+        ${subTaskLen > 0 ?
+        `<div class="tags has-addons">
+            <span class="tag p-1">sub/cmp</span>
+              <span class="tag p-1 is-dark">${subTaskLen}/${subTaskCompLen}</span>
+          </div>`: ""
+      }
+
       </label></div>
       ${isComp ?
         '<div data-action="delete" class="task_details"><span class="button"><svg class="icon has-text-grey-light"><use xlink:href="#icon-trashcan"></use></svg></span></div>' :
@@ -3598,6 +3624,7 @@ class TaskItem extends HTMLElement {
       });
     }
     this.subTaskItemList.insertAdjacentElement(position, taskItem);
+    this.mainArea.innerHTML = this._renderMain(this.task);
     taskItem._animateThis();
     this._updateOrder();
   }
@@ -3716,10 +3743,7 @@ class TaskItem extends HTMLElement {
   }
   _delete(e, target) {
     ToDoUtils.deleteTask(this.task);
-
-    if (!this.task.parent) {
-      this.dispatchEvent(new CustomEvent("taskdelete", { bubbles: true }));
-    }
+    this.dispatchEvent(new CustomEvent("taskdelete", { bubbles: true }));
     if (this._animateNext() || this._animatePrev()) { /* do nothing */ }
     this.remove();
   }
