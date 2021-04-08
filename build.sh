@@ -10,6 +10,10 @@ BUNDLE_CSS_JS_OUT=${DIST}/bundle_css.js
 QUILL=${PRJROOT}/node_modules/quill/dist/quill.min.js
 SORTABLEJS=${PRJROOT}/node_modules/sortablejs/Sortable.min.js
 
+if [ -d ${DIST} ]; then
+    rm -rf ${DIST}
+fi
+
 cp -r ${SRC} ${DIST}
 
 # bundle js files
@@ -30,4 +34,4 @@ import '${SRC}/style.css';
 EOS
 
 webpack
-rm ${BUNDLE_CSS_JS} ${BUNDLE_CSS_JS_OUT}
+rm ${BUNDLE_CSS_JS} ${BUNDLE_CSS_JS_OUT} ${SRC}/bulma.min.css
