@@ -468,7 +468,8 @@ const API = new class {
         start: { date: startFormatted },
         end: { date: endFormatted },
         colorId: this.colorId,
-        location
+        location,
+        transparency: "transparent"
       },
     });
   }
@@ -524,7 +525,8 @@ const API = new class {
         start: { date: startFormatted },
         end: { date: endFormatted },
         colorId: this.colorId,
-        location
+        location,
+        transparency: "transparent"
       },
     });
   }
