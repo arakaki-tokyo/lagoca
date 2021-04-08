@@ -3542,6 +3542,12 @@ class TaskItem extends HTMLElement {
         this.mainArea.innerHTML = this._renderMain(this.task);
         this._updateOrder();
       })
+      this.newSubTaskTitle.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          this._subAdd();
+          e.target.blur();
+        }
+      });
     }
   }
   _render(task) {
@@ -3633,6 +3639,8 @@ class TaskItem extends HTMLElement {
         animation: 150,
         draggable: ".task_item",
         filter: ".completed",
+        delay: 60,
+        delayOnTouchOnly: true,
         onUpdate: e => this._updateOrder(e)
       });
     }
@@ -3825,6 +3833,12 @@ class ToDoTasks extends HTMLElement {
     this.addEventListener("taskincomplete", e => {
       this.container.insertAdjacentElement("afterbegin", e.detail);
       this._updateOrder();
+    });
+    this.newTaskTitle.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        this._add();
+        e.target.blur();
+      }
     });
   }
   update({ key, value }) {
