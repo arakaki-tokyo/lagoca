@@ -473,7 +473,8 @@ const API = new class {
         start: { date: startFormatted },
         end: { date: endFormatted },
         colorId: this.colorId,
-        location
+        location,
+        transparency: "transparent"
       },
     });
   }
@@ -529,7 +530,8 @@ const API = new class {
         start: { date: startFormatted },
         end: { date: endFormatted },
         colorId: this.colorId,
-        location
+        location,
+        transparency: "transparent"
       },
     });
   }
@@ -2404,18 +2406,18 @@ class UpcomingActList extends HTMLElement {
   }
 
   getUpcomings(calendarId) {
-    const onedayms = 1000 * 60 * 60 * 24;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tommorow = new Date(today.getTime() + onedayms);
+    const tommorow = new Date(today.getTime() + ONEDAY_MS);
     return API.listEvent({
       calendarId,
       timeMax: tommorow.toISOString(),
-      timeMin: today.toISOString()
+      timeMin: new Date().toISOString()
     })
       .then(res => {
         const upcomings = [];
         res.result.items.forEach(item => {
+          if (item.location && item.location.match(/.*LoGoCa.*/)) return;
           upcomings.push(new Act({
             start: item.start.dateTime ? new Date(item.start.dateTime).getTime() : null,
             end: item.end.dateTime ? new Date(item.end.dateTime).getTime() : null,
@@ -2434,7 +2436,7 @@ class UpcomingActList extends HTMLElement {
     upcomings.forEach(act => {
       const upcomingAct = document.createElement("upcoming-act");
       upcomingAct.init({ tmpl: this.tmpl, act, isActDoing: this.isActDoing });
-      this.listContainer.insertAdjacentElement('afterbegin', upcomingAct);
+      this.listContainer.insertAdjacentElement('beforeend', upcomingAct);
     })
   }
 }
@@ -3536,6 +3538,12 @@ class TaskItem extends HTMLElement {
         this.mainArea.innerHTML = this._renderMain(this.task);
         this._updateOrder();
       })
+      this.newSubTaskTitle.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          this._subAdd();
+          e.target.blur();
+        }
+      });
     }
   }
   _render(task) {
@@ -3627,6 +3635,8 @@ class TaskItem extends HTMLElement {
         animation: 150,
         draggable: ".task_item",
         filter: ".completed",
+        delay: 60,
+        delayOnTouchOnly: true,
         onUpdate: e => this._updateOrder(e)
       });
     }
@@ -3819,6 +3829,12 @@ class ToDoTasks extends HTMLElement {
     this.addEventListener("taskincomplete", e => {
       this.container.insertAdjacentElement("afterbegin", e.detail);
       this._updateOrder();
+    });
+    this.newTaskTitle.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        this._add();
+        e.target.blur();
+      }
     });
   }
   update({ key, value }) {
@@ -4410,7 +4426,7 @@ const coordinator = new class {
 }
 const workerManager = new class {
   doingAct;
-  settings;
+  notificationEnabled;
   registration;
   serviceWorker;
   constructor() {
@@ -4423,28 +4439,39 @@ const workerManager = new class {
         .then(registration => {
           this.registration = registration;
           this.serviceWorker = registration.active;
-          this.proc();
         })
     }
   }
   update({ key, value }) {
     switch (key) {
       case storeKeys.doingAct:
-      case storeKeys.settings:
         this[key] = value;
-        this.proc();
+        if (!this.notificationEnabled) return;
+        if (value) {
+          this._showNotification();
+        } else {
+          this._closeNotification();
+        }
+        break;
+      case storeKeys.settings:
+        if (this.notificationEnabled === value.notificationEnabled) return;
+        if (value.notificationEnabled && this.doingAct) {
+          this._showNotification();
+        } else {
+          this._closeNotification();
+        }
+        this.notificationEnabled = value.notificationEnabled;
         break;
       default:
     }
   }
-  proc() {
-    if (this.serviceWorker && this.settings.notificationEnabled) {
-      if (this.doingAct) {
-        this.serviceWorker.postMessage(this.doingAct);
-      } else {
-        this.serviceWorker.postMessage(null);
-      }
-    }
+  _showNotification() {
+    if (!this.serviceWorker) return;
+    this.serviceWorker.postMessage(this.doingAct);
+  }
+  _closeNotification() {
+    if (!this.serviceWorker) return;
+    this.serviceWorker.postMessage(null);
   }
   recieve(e) {
     Store.set(storeKeys.sw, e.data);
