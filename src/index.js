@@ -3526,14 +3526,20 @@ class TaskItem extends HTMLElement {
       this.classList.add("box");
       this.complete.addEventListener("mouseenter", this._hoverHandler.bind(this));
       this.complete.addEventListener("mouseleave", this._hoverHandler.bind(this));
+      this.subTaskItemList.addEventListener("taskdelete", e => {
+        e.stopPropagation();
+        setTimeout(() => this.mainArea.innerHTML = this._renderMain(this.task), 0);
+      });
       this.subTaskItemList.addEventListener("taskincomplete", e => {
         e.stopPropagation();
         this.subTaskItemList.insertAdjacentElement("afterbegin", e.target);
+        this.mainArea.innerHTML = this._renderMain(this.task);
         this._updateOrder();
       })
       this.subTaskItemList.addEventListener("taskcomplete", e => {
         e.stopPropagation();
         this.subTaskItemList.insertAdjacentElement("beforeend", e.target);
+        this.mainArea.innerHTML = this._renderMain(this.task);
         this._updateOrder();
       })
     }
@@ -3568,6 +3574,8 @@ class TaskItem extends HTMLElement {
             "is-warning" :
             "is-primary" :
         "";
+    const subTaskLen = this.subTaskItemList ? this.subTaskItemList.children.length : 0;
+    const subTaskCompLen = subTaskLen > 0 ? [...this.subTaskItemList.children].filter(i => TaskStatus.completed.isSame(i.task.status)).length : 0;
     return `
       ${task.parent ? "" : '<div class="task_details sortable-handle"><span class="button"><svg class="icon"><use xlink:href="#icon-arrows-v"></use></svg></span></div>'}
       <div ${isComp ? "" : 'data-action="start"'} class="task_details"><button data-role="start" class="button" ${isComp ? "disabled" : ""}><svg class="icon has-text-primary"><use xlink:href="#icon-play-outline"></use></svg></button></div>
@@ -3576,16 +3584,24 @@ class TaskItem extends HTMLElement {
         `<p class="task_title_text has-text-weight-bold"><a href="${task.links[0].link}" target="_blank" rel="noreferrer">${task.title}</a></p>` :
         `<p class="task_title_text has-text-weight-bold">${task.title}</p>`
       }
-         ${isComp || task.due ?
-        `<div class="tags has-addons">
-          <span class="tag ${isComp ? "" : "is-light"} ${fontColor}">
-            <svg style="width:15px;height:15px"><use xlink:href="${isComp ? '#icon-check' : '#icon-calendar'}"></use></svg>
-          </span>
-         ${isComp ?
-          `<span class="tag ${fontColor} is-light">${new MyDate(task.completed).strftime("%m/%d %H:%M")}</span>` :
-          `<span class="tag ${fontColor}">${new MyDate(task.due).strftime("%m/%d")}</span>`
+        ${isComp || task.due ?
+        `<div class="tags has-addons mr-1">
+            <span class="tag  p-1 ${isComp ? "" : "is-light"} ${fontColor}">
+              <svg style="width:15px;height:15px"><use xlink:href="${isComp ? '#icon-check' : '#icon-calendar'}"></use></svg>
+            </span>
+            ${isComp ?
+          `<span class="tag  p-1 ${fontColor} is-light">${new MyDate(task.completed).strftime("%m/%d %H:%M")}</span>` :
+          `<span class="tag  p-1 ${fontColor}">${new MyDate(task.due).strftime("%m/%d")}</span>`
         }
-       </div>`: ""}
+          </div>`: ""
+      }
+        ${subTaskLen > 0 ?
+        `<div class="tags has-addons">
+            <span class="tag p-1">sub/cmp</span>
+              <span class="tag p-1 is-dark">${subTaskLen}/${subTaskCompLen}</span>
+          </div>`: ""
+      }
+
       </label></div>
       ${isComp ?
         '<div data-action="delete" class="task_details"><span class="button"><svg class="icon has-text-grey-light"><use xlink:href="#icon-trashcan"></use></svg></span></div>' :
@@ -3621,6 +3637,7 @@ class TaskItem extends HTMLElement {
       });
     }
     this.subTaskItemList.insertAdjacentElement(position, taskItem);
+    this.mainArea.innerHTML = this._renderMain(this.task);
     taskItem._animateThis();
     this._updateOrder();
   }
@@ -3739,10 +3756,7 @@ class TaskItem extends HTMLElement {
   }
   _delete(e, target) {
     ToDoUtils.deleteTask(this.task);
-
-    if (!this.task.parent) {
-      this.dispatchEvent(new CustomEvent("taskdelete", { bubbles: true }));
-    }
+    this.dispatchEvent(new CustomEvent("taskdelete", { bubbles: true }));
     if (this._animateNext() || this._animatePrev()) { /* do nothing */ }
     this.remove();
   }
