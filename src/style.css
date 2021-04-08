@@ -349,11 +349,8 @@ select-tasklist.no_item > .dropdown-trigger > button {
 .dropdown-menu.override {
   max-width: 330px;
 }
-tasklist-item.dropdown-item {
-  display: inline-flex;
+tasklist-item {
   cursor: pointer;
-  padding-right: 3rem;
-  text-align: inherit;
   white-space: nowrap;
   width: 100%;
 }
@@ -365,23 +362,14 @@ tasklist-item:hover {
   background-color: #f5f5f5;
   color: #0a0a0a;
 }
-.dropdown-item > [data-action="edit"] {
-  padding: 0;
+
+tasklist-item > [data-role="listTitle"] {
+  overflow: scroll;
+  flex: 1 1 auto;
+}
+tasklist-item > [data-action="edit"] {
   width: 20px;
   height: 20px;
-  margin-right: 1rem;
-}
-.dropdown-item > [data-action="edit"] > svg {
-  width: 1rem;
-  height: 1rem;
-}
-.dropdown-item > [data-role="listTitle"] {
-  max-width: 85%;
-  overflow: scroll;
-}
-.dropdown-item > [data-action="delete"] {
-  position: absolute;
-  right: 1rem;
 }
 
 #todo_tasks_container {

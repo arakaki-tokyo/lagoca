@@ -1070,7 +1070,6 @@ class TaskList {
   /** @type {Number} */   order
   /** @type {Boolean} */  isSynced;
   /** @type {SyncAction} */  action;
-  /** @type {Boolean} */  isPrimary;
 
   /** 
   * @param {object}   object
@@ -1080,7 +1079,6 @@ class TaskList {
   * @param {Number}   object.order
   * @param {Boolean}  [object.isSynced]
   * @param {SyncAction}   object.action
-  * @param {Boolean}  [object.isPrimary]
   */
   constructor({
     id,
@@ -1089,7 +1087,6 @@ class TaskList {
     order,
     isSynced = false,
     action,
-    isPrimary = false
   }) {
     this.id = id;
     this.title = title;
@@ -1097,7 +1094,6 @@ class TaskList {
     this.order = order;
     this.isSynced = isSynced;
     this.action = action;
-    this.isPrimary = isPrimary;
   }
   static fromAPI(obj) {
     return new TaskList({
@@ -3235,6 +3231,8 @@ class SelectTaskList extends HTMLElement {
     new Sortable(this.sortable, {
       animation: 150,
       draggable: ".sortable_item",
+      delay: 60,
+      delayOnTouchOnly: true,
       onUpdate: evt => this._updateOrder()
     });
   }
@@ -3281,10 +3279,12 @@ class SelectTaskList extends HTMLElement {
     });
   }
   _renderList(taskList, isActive) {
-    if (isActive) this.currentListName.innerHTML = taskList.title;
     const taskListItem = document.createElement("tasklist-item");
     taskListItem.init(taskList);
-    if (isActive) taskListItem.activate();
+    if (isActive) {
+      this.currentListName.innerHTML = taskList.title;
+      taskListItem.activate();
+    }
     this.sentinel.insertAdjacentElement('beforebegin', taskListItem);
     return taskListItem;
   }
@@ -3353,11 +3353,10 @@ class TaskListItem extends HTMLElement {
     this.id = taskList.id;
     this.title = taskList.title;
     this.setAttribute("data-action", "select");
-    this.classList.add("dropdown-item", "sortable_item")
+    this.classList.add("dropdown-item", "sortable_item", "is-flex", "pr-2");
     this.innerHTML = `
-      <span data-action="edit" class="button"><svg class="icon has-text-danger-dark is-clickable"><use xlink:href="#icon-pencil"></use></svg></span>
-      <span data-role="listTitle">${taskList.title}</span>
-      ${taskList.isPrimary ? "" : '<span class="delete" data-action="delete"></span>'}
+    <span data-role="listTitle">${taskList.title}</span>
+    <span data-action="edit" class="button p-0"><svg class="has-text-danger-dark" width="16" height="16"><use xlink:href="#icon-pencil"></use></svg></span>
     `;
 
     this.querySelectorAll("[data-role]").forEach(elm => {
@@ -3378,7 +3377,7 @@ class TaskListItem extends HTMLElement {
   _edit(e) {
     this.dispatchEvent(new CustomEvent("tasklistedit", { bubbles: true }));
   }
-  async _delete(e) {
+  async delete(e) {
     try {
       await ToDoUtils.deleteTaskList(this.taskList);
     } catch (e) {
@@ -3393,6 +3392,7 @@ class TaskListItem extends HTMLElement {
 /**
  * taskListのモーダル
  * - `data-action="close"`属性：クリックされるとモーダルを閉じる
+ * - `data-action="delete"`属性：クリックされるとtaskListを削除
  * - `data-action="apply"`属性：クリックされると設定を保存
  * - `data-role="header"`属性：モーダルのヘッダー
  * - `data-role="listTitle"`属性：taskListのタイトル
@@ -3408,6 +3408,9 @@ class TaskListModal extends HTMLElement {
         <div class="modal-card" style="width: 300px">
           <header class="modal-card-head p-3">
             <p data-role="header" class="modal-card-title is-size-6"></p>
+            <span data-role="deleteButton" data-action="delete" class="is-flex is-clickable mr-3" title="削除">
+              <svg width="20" height="20"><use xlink:href="#icon-trashcan"></use></svg>
+            </span>
             <button data-action="close" class="delete" aria-label="close"></button>
           </header>
           <section class="modal-card-body">
@@ -3437,16 +3440,23 @@ class TaskListModal extends HTMLElement {
     if (taskListItem) {
       this.editingTaskListItem = taskListItem;
       this.editingTaskList = { ...taskListItem.taskList };
-      this.header.innerHTML = "名前の変更";
+      this.header.innerHTML = "名前の変更・削除";
+      this.deleteButton.style.visibility = "visible";
       this.listTitle.value = taskListItem.taskList.title;
     } else {
       this.header.innerHTML = "新規作成";
+      this.deleteButton.style.visibility = "hidden";
       this.editingTaskList = new TaskList({});
     }
   }
   _close() {
     this.classList.remove("is-active");
     this.listTitle.value = "";
+  }
+  _delete() {
+    this.editingTaskListItem.delete();
+    delete this.editingTaskListItem;
+    this._close();
   }
   async _apply() {
     this.editingTaskList.isSynced = false;
