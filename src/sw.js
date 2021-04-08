@@ -100,10 +100,15 @@ const notificationClickHandler = new class {
 const cacheHandler = new class {
   cacheItems = [
     {
-      version: "2",
+      version: "4",
       urls: [
         "/",
         "/index.js",
+      ]
+    },
+    {
+      version: "3",
+      urls: [
         "/style.css"
       ]
     },
