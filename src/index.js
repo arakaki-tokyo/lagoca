@@ -2402,19 +2402,19 @@ class UpcomingActList extends HTMLElement {
   }
 
   getUpcomings(calendarId) {
-    const onedayms = 1000 * 60 * 60 * 24;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tommorow = new Date(today.getTime() + onedayms);
+    const tommorow = new Date(today.getTime() + ONEDAY_MS);
     return API.listEvent({
       calendarId,
       timeMax: tommorow.toISOString(),
-      timeMin: today.toISOString()
+      timeMin: new Date().toISOString()
     })
       .then(res => {
         console.log(res);
         const upcomings = [];
         res.result.items.forEach(item => {
+          if (item.location && item.location.match(/.*LoGoCa.*/)) return;
           upcomings.push(new Act({
             start: item.start.dateTime ? new Date(item.start.dateTime).getTime() : null,
             end: item.end.dateTime ? new Date(item.end.dateTime).getTime() : null,
@@ -2433,7 +2433,7 @@ class UpcomingActList extends HTMLElement {
     upcomings.forEach(act => {
       const upcomingAct = document.createElement("upcoming-act");
       upcomingAct.init({ tmpl: this.tmpl, act, isActDoing: this.isActDoing });
-      this.listContainer.insertAdjacentElement('afterbegin', upcomingAct);
+      this.listContainer.insertAdjacentElement('beforeend', upcomingAct);
     })
   }
 }
