@@ -15,15 +15,29 @@ html,
 body {
   height: 100%;
 }
-tab-swipeable {
-  padding: 0.1px;
-  height: 100%;
-  position: relative;
+
+/* **************** */
+/* navbar style     */
+/* **************** */
+settings-modal [data-role="userImg"] {
+  position: absolute;
+  bottom: -20%;
+  right: -30%;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  display: none;
 }
 
 /* ***************** */
 /* tab & page style  */
 /* ***************** */
+tab-swipeable {
+  padding: 0.1px;
+  height: 100%;
+  position: relative;
+}
 #tab li {
   flex: 1 1 25%;
 }
