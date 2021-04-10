@@ -102,17 +102,12 @@ const cacheHandler = new class {
     {
       version: "6",
       urls: [
+        "/",
         "/index.js",
       ]
     },
     {
       version: "5",
-      urls: [
-        "/",
-      ]
-    },
-    {
-      version: "4",
       urls: [
         "/style.css"
       ]
