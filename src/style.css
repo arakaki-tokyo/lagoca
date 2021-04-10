@@ -23,7 +23,6 @@ body {
   height: var(--h-nav);
 }
 another-act {
-  transform: translateY(-50px);
   transition-duration: 1000ms;
 }
 another-act > button {
