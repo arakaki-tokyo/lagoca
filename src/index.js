@@ -4499,6 +4499,8 @@ const titleManager = new class {
   iconParts;
   registeredJob;
   constructor() {
+    if (screen.width + screen.height < 1500) return;
+
     Store.onChange(storeKeys.doingAct, this);
     Store.onChange(storeKeys.summaryFromView, this);
 
