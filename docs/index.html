@@ -108,15 +108,23 @@
   </svg>
   <!-- << icons -->
   <section style="height:100%">
-    <nav class="navbar is-fixed-top">
+    <nav class="main_nav navbar is-fixed-top is-flex">
       <div class="navbar-brand is-pulled-left">
         <img src="img/logo.svg" width="110px">
       </div>
-      <div class="navbar-menu is-active is-shadowless p-2">
-        <div class="navbar-end  is-flex is-flex-direction-row-reverse">
-          <modal-open id="open_settings" class="mx-3 pt-1">
-            <svg class="icon" fill="#AAA"><use xlink:href="#icon-cog"></use></svg>
-          </modal-open>
+      <div class="navbar-menu is-active is-shadowless p-2 is-flex is-justify-content-space-between is-flex-grow-1">
+        <div class="navbar-start">
+          <another-act>
+            <button data-action="open" class="button px-2 is-rounded has-text-danger">
+              <svg width="10" height="10"><use xlink:href="#icon-plus"></use></svg>
+              <svg width="16" height="16"><use xlink:href="#icon-accessibility"></use></svg>
+            </button>
+          </another-act>
+        </div>
+        <div class="navbar-end">
+          <settings-modal class="mx-3 pt-1">
+            <svg data-action="open" class="icon is-clickable" fill="#AAA"><use xlink:href="#icon-cog"></use></svg>
+          </settings-modal>
         </div>
       </div>
     </nav>
@@ -295,114 +303,6 @@
       </div>
     </tab-swipeable>
   </section>
-  <settings-modal class="modal">
-    <div data-action="close" class="modal-background"></div>
-    <div class="modal-card">
-      <header class="modal-card-head p-3">
-        <p class="modal-card-title is-size-6 has-text-weight-bold">設定</p>
-        <button data-action="close" class="delete" aria-label="close"></button>
-      </header>
-      <section class="modal-card-body">
-        <div data-state="logedout">
-          <button data-action="signin" class="button is-link">Googleアカウントにサインイン</button>
-        </div>
-        <div data-state="signedin" class="block is-hidden">
-          <div class="field">
-            <label class="label">User Profile</label>
-            <div class="media control">
-              <figure class="media-left image is-32x32 mx-2">
-                <img is="user-img" class="is-rounded">
-              </figure>
-              <div class="media-content">
-                <user-email class="has-text-weight-medium is-size-7"></user-email>
-              </div>
-              <div class="media-right">
-                <button data-action="logout" class="button is-small">SignOut</button>
-              </div>
-            </div>
-          </div>
-          <div class="field">
-            <label class="label">予定を取得するカレンダー</label>
-            <div class="ml-2 control">
-              <label class="checkbox"><input data-role="upcomingEnabled" type="checkbox">予定の取得を有効化</label>
-            </div>
-            <div class="ml-2 control">
-              <div class="select">
-                <select is="select-cal" data-role="upcomingCalendarId" style="width:150px">
-                  <option value="primary">default</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          <div class="field">
-            <label class="label">ログを記録するカレンダー</label>
-            <div claass="ml-2 control" style="display:flex">
-              <div class="select mr-2">
-                <select is="select-log" data-role="logCalendarId" style="width:150px">
-                  <option value="primary">default</option>
-                </select>
-              </div>
-              <div class="field has-addons">
-                <div class="control">
-                  <input is="new-cal" id="new_calendar" class="input" type="text" placeholder="新規作成">
-                </div>
-                <div class="control">
-                  <button is="add-cal" class="button is-info  has-text-light"><svg class="icon"><use xlink:href="#icon-add-outline"></use></svg></button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="field">
-            <label class="label">Event Color</label>
-            <eve-col data-role="colorId"></eve-col>
-          </div>
-        </div>
-        <div class="field">
-          <label class="label">
-            <span class="icon is-small"><svg><use xlink:href="#icon-tool"></use></svg></span>
-            <span>Routine</span>
-            <tool-tip class="icon is-small has-text-info" title="繰り返し行うActivityを登録します。"></tool-tip>
-          </label>
-          <div class="ml-2 control">
-            <label class="checkbox"><input data-role="routineEnabled" type="checkbox">Routineを有効化</label>
-          </div>
-        </div>
-        <div class="field">
-          <label class="label">
-            <span class="icon is-small"><svg><use xlink:href="#icon-tasks"></use></svg></span>
-            <span>ToDoリスト</span>
-            <tool-tip class="icon is-small has-text-info" title="Googleアカウントにサインインした場合、GoogleのToDoリストと同期します。"></tool-tip>
-          </label>
-          <div class="ml-2 control">
-            <label class="checkbox"><input data-role="todoEnabled" type="checkbox">ToDoリストを有効化</label>
-          </div>
-        </div>
-        <div class="field">
-          <label class="label">
-            <span class="icon is-small"><svg><use xlink:href="#icon-quill"></use></svg></span>
-            <span>Diary</span>
-            <tool-tip class="icon is-small has-text-info" title="Googleアカウントにサインインした場合、終日のイベントとしてGoogle Calendarに登録します。"></tool-tip>
-          </label>
-          <div class="ml-2 control">
-            <label class="checkbox"><input data-role="diaryEnabled" type="checkbox">Diaryを有効化</label>
-          </div>
-        </div>
-        <div class="field">
-          <label class="label">
-            <span>通知</span>
-            <tool-tip class="icon is-small has-text-info" title="通知バーなどに実行中のActivityを表示し、すばやくアクセスできるようにします。<br>初回はデバイスで許可する必要があります。"></tool-tip>
-          </label>
-          <div class="ml-2 control">
-            <label class="checkbox"><input is="notification-check" data-role="notificationEnabled" type="checkbox">実行中Activityの通知を有効化</label>
-          </div>
-        </div>
-      </section>
-      <footer class="modal-card-foot">
-        <button data-action="apply" class="button is-link">保存</button>
-        <button data-action="close" class="button is-link is-light">キャンセル</button>
-      </footer>
-    </div>
-  </settings-modal>
   <notice-show id="notification" class="message is-danger">
     <div class="message-header p-1 is-size-7">
       <p>Notice!</p>

@@ -49,7 +49,6 @@ class Store {
 };
 
 const storeKeys = {
-  isModalOpen: "isModalOpen",
   userProfile: "usrProfile",
   calendars: "calendars",
   settings: "settings",
@@ -66,7 +65,8 @@ const storeKeys = {
   doneActList: "doneActList",
   sw: "sw",
   toBeStartedAct: "toBeStartedAct",
-  listInserted: "listInserted"
+  listInserted: "listInserted",
+  anotherAct: "anotherAct"
 };
 
 /* *************************************** */
@@ -1239,8 +1239,6 @@ class Task {
 /* *************************************** */
 /*  custom elements definitions            */
 /* *************************************** */
-const $ = (id) => document.getElementById(id);
-
 /**
  * - `data-tab`属性: 表示するページに対応するタブ
  * - `data-page`属性: 表示するページ
@@ -1339,15 +1337,86 @@ class TabSwipeable extends HTMLElement {
     e.target.addEventListener("scroll", this.scrollHandler);
   }
 }
+class AnotherAct extends HTMLElement {
+  _act;
+  _transformValue;
+  connectedCallback() {
+    this.style.display = "block";
+    Store.onChange(storeKeys.anotherAct, this);
+    Store.onChange(storeKeys.doingAct, this);
+    this.innerHTML += `
+      <div data-role="modal" class="modal" style="cursor: initial;justify-content: flex-start;padding-top: 50px;">
+        <div data-action="close" class="modal-background"></div>
+        <div class="modal-card">
+          <header class="modal-card-head p-3">
+            <p class="modal-card-title is-size-6">別デバイスで実行中<span data-role="time"></span></p>
+            <button data-action="close" class="delete" aria-label="close"></button>
+          </header>
+          <section class="modal-card-body">
+            <input data-role="summary" class="input mb-1" style="overflow-x: scroll;" disabled></input>
+            <div data-role="description" class="content"></div>
+          </section>
+          <footer class="modal-card-foot">
+            <button data-role="takeOverButton" data-action="takeOver" class="button is-link">引き継ぐ</button>
+            <button data-action="ignore" class="button is-link is-light">無視する</button>
+          </footer>
+        </div>
+      </div>
+    `;
 
+    this.querySelectorAll("[data-role]").forEach(elm => {
+      this[`_${elm.dataset.role}`] = elm;
+    });
+    this.querySelectorAll("[data-action]").forEach(elm => {
+      elm.addEventListener("click", this[`_${elm.dataset.action}`].bind(this))
+    });
+    this._transformValue = this.style.transform;
+  }
+  update({ key, value }) {
+    switch (key) {
+      case storeKeys.anotherAct:
+        this._act = value;
+        this._slideIn();
+        this._summary.value = this._act.summary;
+        this._time.innerHTML = `( ${new MyDate(this._act.start).strftime("%m/%d %H:%M")} ~ )`;
+        this._description.innerHTML = this._act.description;
+        break;
+      case storeKeys.doingAct:
+        if (value) {
+          this._takeOverButton.disabled = true;
+        } else {
+          this._takeOverButton.disabled = false;
+        }
+      default:
+    }
+  }
+  _takeOver() {
+    Store.set(storeKeys.doingAct, this._act);
+    Store.set(storeKeys.summaryToView, this._act.summary);
+    Store.set(storeKeys.descriptionToView, this._act.description);
+    this._close();
+    this._slideOut();
+    ActSynchronizer.synchronize();
+  }
+  _ignore() {
+    this._close();
+    this._slideOut();
+  }
+  _open() { this._modal.classList.add("is-active") }
+  _close() { this._modal.classList.remove("is-active") }
+  _slideIn() { this.style.transform = "initial"; }
+  _slideOut() { this.style.transform = this._transformValue; }
+}
 /**
  * 設定のモーダル
+ * - `data-action="open"`属性：クリックされるとモーダルを開く
  * - `data-action="close"`属性：クリックされるとモーダルを閉じる
  * - `data-action="signin"`属性：クリックされるとサインイン処理
  * - `data-action="logout"`属性：クリックされるとログアウト処理
  * - `data-action="apply"`属性：クリックされると設定を保存
  * - `data-state="logedout"`: 非ログイン状態で表示
  * - `data-state="signedin"`: ログイン状態で表示
+ * - `data-role="modal"`: モーダル本体
  * - `data-role="upcomingEnabled"`: 予定の取得を有効化チェックボックス
  * - `data-role="upcomingCalendar_id"`: 予定を取得するカレンダーセレクトボックス
  * - `data-role="logCalendar_id"`: ログを記録するカレンダーセレクトボックス
@@ -1372,12 +1441,124 @@ class SettingsModal extends HTMLElement {
 
   constructor() {
     super();
-    Store.onChange(storeKeys.isModalOpen, this);
     Store.onChange(storeKeys.isSignedIn, this);
     Store.onChange(storeKeys.settings, this);
     Store.onChange(storeKeys.calendars, this);
   }
   connectedCallback() {
+    this.innerHTML += `
+      <img is="user-img" data-action="open" data-role="userImg">
+      <div data-role="modal" class="modal">
+        <div data-action="close" class="modal-background"></div>
+        <div class="modal-card">
+          <header class="modal-card-head p-3">
+            <p class="modal-card-title is-size-6 has-text-weight-bold">設定</p>
+            <button data-action="close" class="delete" aria-label="close"></button>
+          </header>
+          <section class="modal-card-body">
+            <div data-state="logedout">
+              <button data-action="signin" class="button is-link">Googleアカウントにサインイン</button>
+            </div>
+            <div data-state="signedin" class="block is-hidden">
+              <div class="field">
+                <label class="label">User Profile</label>
+                <div class="media control">
+                  <figure class="media-left image is-32x32 mx-2">
+                    <img is="user-img" class="is-rounded">
+                  </figure>
+                  <div class="media-content">
+                    <user-email class="has-text-weight-medium is-size-7"></user-email>
+                  </div>
+                  <div class="media-right">
+                    <button data-action="logout" class="button is-small">SignOut</button>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">予定を取得するカレンダー</label>
+                <div class="ml-2 control">
+                  <label class="checkbox"><input data-role="upcomingEnabled" type="checkbox">予定の取得を有効化</label>
+                </div>
+                <div class="ml-2 control">
+                  <div class="select">
+                    <select is="select-cal" data-role="upcomingCalendarId" style="width:150px">
+                      <option value="primary">default</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">ログを記録するカレンダー</label>
+                <div claass="ml-2 control" style="display:flex">
+                  <div class="select mr-2">
+                    <select is="select-log" data-role="logCalendarId" style="width:150px">
+                      <option value="primary">default</option>
+                    </select>
+                  </div>
+                  <div class="field has-addons">
+                    <div class="control">
+                      <input is="new-cal" id="new_calendar" class="input" type="text" placeholder="新規作成">
+                    </div>
+                    <div class="control">
+                      <button is="add-cal" class="button is-info  has-text-light"><svg class="icon"><use xlink:href="#icon-add-outline"></use></svg></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Event Color</label>
+                <eve-col data-role="colorId"></eve-col>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">
+                <span class="icon is-small"><svg><use xlink:href="#icon-tool"></use></svg></span>
+                <span>Routine</span>
+                <tool-tip class="icon is-small has-text-info" title="繰り返し行うActivityを登録します。"></tool-tip>
+              </label>
+              <div class="ml-2 control">
+                <label class="checkbox"><input data-role="routineEnabled" type="checkbox">Routineを有効化</label>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">
+                <span class="icon is-small"><svg><use xlink:href="#icon-tasks"></use></svg></span>
+                <span>ToDoリスト</span>
+                <tool-tip class="icon is-small has-text-info" title="Googleアカウントにサインインした場合、GoogleのToDoリストと同期します。"></tool-tip>
+              </label>
+              <div class="ml-2 control">
+                <label class="checkbox"><input data-role="todoEnabled" type="checkbox">ToDoリストを有効化</label>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">
+                <span class="icon is-small"><svg><use xlink:href="#icon-quill"></use></svg></span>
+                <span>Diary</span>
+                <tool-tip class="icon is-small has-text-info" title="Googleアカウントにサインインした場合、終日のイベントとしてGoogle Calendarに登録します。"></tool-tip>
+              </label>
+              <div class="ml-2 control">
+                <label class="checkbox"><input data-role="diaryEnabled" type="checkbox">Diaryを有効化</label>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">
+                <span>通知</span>
+                <tool-tip class="icon is-small has-text-info" title="通知バーなどに実行中のActivityを表示し、すばやくアクセスできるようにします。<br>初回はデバイスで許可する必要があります。"></tool-tip>
+              </label>
+              <div class="ml-2 control">
+                <label class="checkbox"><input is="notification-check" data-role="notificationEnabled" type="checkbox">実行中Activityの通知を有効化</label>
+              </div>
+            </div>
+          </section>
+          <footer class="modal-card-foot">
+            <button data-action="apply" class="button is-link">保存</button>
+            <button data-action="close" class="button is-link is-light">キャンセル</button>
+          </footer>
+        </div>
+      </div>
+    `;
+    this.style.display = "block";
+    this.style.position = "relative";
     this.querySelectorAll("[data-role]").forEach(elm => {
       this[`${elm.dataset.role}`] = elm;
     })
@@ -1398,32 +1579,29 @@ class SettingsModal extends HTMLElement {
         // wait calendar selectors updating
         setTimeout(() => this.init(this.appliedSetting), 0);
         break;
-      case storeKeys.isModalOpen:
-        if (value) {
-          this.classList.add("is-active");
-        } else {
-          this.classList.remove("is-active");
-          this.init(this.appliedSetting);
-        }
-        break;
       case storeKeys.isSignedIn:
         if (value) {
           this.querySelectorAll(`[data-state="signedin"]`)
             .forEach(elm => elm.classList.remove("is-hidden"));
           this.querySelectorAll(`[data-state="logedout"]`)
             .forEach(elm => elm.classList.add("is-hidden"));
+          this.userImg.style.display = "initial";
         } else {
           this.querySelectorAll(`[data-state="signedin"]`)
             .forEach(elm => elm.classList.add("is-hidden"));
           this.querySelectorAll(`[data-state="logedout"]`)
             .forEach(elm => elm.classList.remove("is-hidden"));
+          this.userImg.style.display = "none";
         }
         break;
       default:
     }
   }
+  open() {
+    this.modal.classList.add("is-active");
+  }
   close() {
-    Store.set(storeKeys.isModalOpen, false);
+    this.modal.classList.remove("is-active");
   }
   signin(ev) {
     ev.target.classList.add("is-loading");
@@ -1783,59 +1961,6 @@ class NotificationCheck extends HTMLInputElement {
     return super.checked;
   }
 }
-
-class SettingsModalOpen extends HTMLElement {
-  imgElm;
-  constructor() {
-    super();
-    Store.onChange(storeKeys.userProfile, this);
-    Store.onChange(storeKeys.isSignedIn, this);
-    [
-      ["position", "relative"],
-      ["cursor", "pointer"]
-
-    ].forEach(([key, value]) => this.style[key] = value);
-  }
-  connectedCallback() {
-    this.imgElm = document.createElement("img");
-    this.imgElm.setAttribute("style", `
-      width: 20px;
-      position: absolute;
-      top: 15px;
-      left: 13px;
-      border-radius: 50%;
-    `);
-
-    this.addEventListener("click", () => {
-      Store.set(storeKeys.isModalOpen, true);
-    });
-
-    this.innerHTML = `<div>${this.innerHTML}</div>`;
-  }
-  update({ key, value }) {
-    switch (key) {
-      case storeKeys.userProfile:
-        this.logedIn(value.imgSrc);
-        break;
-      case storeKeys.isSignedIn:
-        if (!value) {
-          this.logedOut();
-        }
-        break;
-      default:
-    }
-  }
-  logedIn(src) {
-    this.imgElm.src = src;
-    this.appendChild(this.imgElm);
-  }
-  logedOut() {
-    if (this.contains(this.imgElm)) {
-      this.removeChild(this.imgElm);
-    }
-  }
-}
-
 
 /**
  * アクションタイトル入力欄
@@ -4152,12 +4277,12 @@ const customTags = [
     name: "tab-swipeable"
   },
   {
-    class: SettingsModal,
-    name: "settings-modal"
+    class: AnotherAct,
+    name: "another-act"
   },
   {
-    class: SettingsModalOpen,
-    name: "modal-open"
+    class: SettingsModal,
+    name: "settings-modal"
   },
   {
     class: UserImg,
@@ -4490,6 +4615,8 @@ const titleManager = new class {
   iconParts;
   registeredJob;
   constructor() {
+    if (screen.width + screen.height < 1500) return;
+
     Store.onChange(storeKeys.doingAct, this);
     Store.onChange(storeKeys.summaryFromView, this);
 
@@ -4550,11 +4677,10 @@ const titleManager = new class {
   }
 }
 
-const pereodic = new class {
+const ActSynchronizer = new class {
   doingAct;
   doneActList;
   calendarId;
-  registeredJob;
   constructor() {
     Store.onChange(storeKeys.isSignedIn, this);
     Store.onChange(storeKeys.settings, this);
@@ -4573,29 +4699,24 @@ const pereodic = new class {
         break;
       case storeKeys.isSignedIn:
         if (value) {
-          this.registeredJob = this.periodicProc.bind(this);
-          this.periodicProc.bind(this)();
-          Cron.add(60_000, this.registeredJob);
-        } else {
-          Cron.remove(60_000, this.registeredJob);
+          this.synchronize();
         }
         break;
       default:
     }
   }
-  periodicProc() {
-    Queue.add(() => {
+  synchronize() {
+    Queue.add(async () => {
       if (this.doingAct) {
         if (this.doingAct.isSynced) {
           // check if doingTask has been done
-          return this.checkDone();
+          await this.checkDone();
         } else {
           // doingTask haven't been synced yet, so try to sync.
-          return this.syncDoingAct(this.doingAct);
+          await this.syncDoingAct(this.doingAct);
         }
-      } else {
-        return this.checkDoing();
       }
+      await this.checkDoing();
     });
   }
   checkDone() {
@@ -4606,7 +4727,6 @@ const pereodic = new class {
           this.doingAct.description = res.result.description;
           this.doingAct.end = (new Date(res.result.end.dateTime)).getTime();
           postEndProc(this.doneActList, this.doingAct);
-          return this.checkDoing();
         }
       })
       .catch(handleRejectedCommon);
@@ -4618,27 +4738,31 @@ const pereodic = new class {
       timeMin: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
     })
       .then(res => {
-        const resDoingAct = res.result.items.find(item =>
-          item.start.dateTime && item.end.dateTime && item.start.dateTime == item.end.dateTime);
-        if (resDoingAct) {
-          if (this.doneActList) {
-            const unsyncedAct = this.doneActList.find(act => act.id === resDoingAct.id);
-            if (unsyncedAct) {
-              return this.syncDoneAct(unsyncedAct);
+        res.result.items
+          .filter(item => item.start.dateTime && item.end.dateTime && item.start.dateTime == item.end.dateTime)
+          .forEach(resDoingAct => {
+            if (resDoingAct.id == this.doingAct.id) {
+              return;
+            } else {
+              if (this.doneActList) {
+                const unsyncedAct = this.doneActList.find(act => act.id === resDoingAct.id);
+                if (unsyncedAct) {
+                  return this.syncDoneAct(unsyncedAct);
+                }
+              }
+              const newAct = new Act({
+                isSynced: true,
+                start: new Date(resDoingAct.start.dateTime).getTime(),
+                end: new Date(resDoingAct.end.dateTime).getTime(),
+                id: resDoingAct.id,
+                summary: resDoingAct.summary,
+                description: resDoingAct.description,
+                link: resDoingAct.htmlLink,
+                colorId: resDoingAct.colorId
+              });
+              Store.set(storeKeys.anotherAct, newAct);
             }
-          }
-          const newAct = new Act({
-            isSynced: true,
-            start: new Date(resDoingAct.start.dateTime).getTime(),
-            end: new Date(resDoingAct.end.dateTime).getTime(),
-            id: resDoingAct.id,
-            summary: resDoingAct.summary,
-            description: resDoingAct.description,
-            link: resDoingAct.htmlLink,
-            colorId: resDoingAct.colorId
-          });
-          return this.startNewAct(newAct);
-        }
+          })
       })
       .catch(handleRejectedCommon)
   }
@@ -4660,11 +4784,6 @@ const pereodic = new class {
         idb.save(storeKeys.doneActList);
       })
       .catch(handleRejectedCommon);
-  }
-  startNewAct(act) {
-    Store.set(storeKeys.doingAct, act);
-    Store.set(storeKeys.summaryToView, act.summary);
-    Store.set(storeKeys.descriptionToView, act.description);
   }
   syncDoingAct(act) {
     return API.insertEvent({
