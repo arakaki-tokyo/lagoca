@@ -4751,7 +4751,7 @@ const ActSynchronizer = new class {
         res.result.items
           .filter(item => item.start.dateTime && item.end.dateTime && item.start.dateTime == item.end.dateTime)
           .forEach(resDoingAct => {
-            if (resDoingAct.id == this.doingAct.id) {
+            if (this.doingAct && resDoingAct.id == this.doingAct.id) {
               return;
             } else {
               if (this.doneActList) {
