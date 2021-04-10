@@ -58,7 +58,8 @@ const storeKeys = {
   doneActList: "doneActList",
   sw: "sw",
   toBeStartedAct: "toBeStartedAct",
-  listInserted: "listInserted"
+  listInserted: "listInserted",
+  anotherAct: "anotherAct"
 };
 
 /* *************************************** */
@@ -1331,7 +1332,76 @@ class TabSwipeable extends HTMLElement {
     e.target.addEventListener("scroll", this.scrollHandler);
   }
 }
+class AnotherAct extends HTMLElement {
+  _act;
+  _transformValue;
+  connectedCallback() {
+    this.style.display = "block";
+    Store.onChange(storeKeys.anotherAct, this);
+    Store.onChange(storeKeys.doingAct, this);
+    this.innerHTML += `
+      <div data-role="modal" class="modal" style="cursor: initial;justify-content: flex-start;padding-top: 50px;">
+        <div data-action="close" class="modal-background"></div>
+        <div class="modal-card">
+          <header class="modal-card-head p-3">
+            <p class="modal-card-title is-size-6">別デバイスで実行中<span data-role="time"></span></p>
+            <button data-action="close" class="delete" aria-label="close"></button>
+          </header>
+          <section class="modal-card-body">
+            <input data-role="summary" class="input mb-1" style="overflow-x: scroll;" disabled></input>
+            <div data-role="description" class="content"></div>
+          </section>
+          <footer class="modal-card-foot">
+            <button data-role="takeOverButton" data-action="takeOver" class="button is-link">引き継ぐ</button>
+            <button data-action="ignore" class="button is-link is-light">無視する</button>
+          </footer>
+        </div>
+      </div>
+    `;
 
+    this.querySelectorAll("[data-role]").forEach(elm => {
+      this[`_${elm.dataset.role}`] = elm;
+    });
+    this.querySelectorAll("[data-action]").forEach(elm => {
+      elm.addEventListener("click", this[`_${elm.dataset.action}`].bind(this))
+    });
+    this._transformValue = this.style.transform;
+  }
+  update({ key, value }) {
+    switch (key) {
+      case storeKeys.anotherAct:
+        this._act = value;
+        this._slideIn();
+        this._summary.value = this._act.summary;
+        this._time.innerHTML = `( ${new MyDate(this._act.start).strftime("%m/%d %H:%M")} ~ )`;
+        this._description.innerHTML = this._act.description;
+        break;
+      case storeKeys.doingAct:
+        if (value) {
+          this._takeOverButton.disabled = true;
+        } else {
+          this._takeOverButton.disabled = false;
+        }
+      default:
+    }
+  }
+  _takeOver() {
+    Store.set(storeKeys.doingAct, this._act);
+    Store.set(storeKeys.summaryToView, this._act.summary);
+    Store.set(storeKeys.descriptionToView, this._act.description);
+    this._close();
+    this._slideOut();
+    ActSynchronizer.synchronize();
+  }
+  _ignore() {
+    this._close();
+    this._slideOut();
+  }
+  _open() { this._modal.classList.add("is-active") }
+  _close() { this._modal.classList.remove("is-active") }
+  _slideIn() { this.style.transform = "initial"; }
+  _slideOut() { this.style.transform = this._transformValue; }
+}
 /**
  * 設定のモーダル
  * - `data-action="open"`属性：クリックされるとモーダルを開く
@@ -4213,6 +4283,10 @@ const customTags = [
     name: "tab-swipeable"
   },
   {
+    class: AnotherAct,
+    name: "another-act"
+  },
+  {
     class: SettingsModal,
     name: "settings-modal"
   },
@@ -4610,11 +4684,10 @@ const titleManager = new class {
   }
 }
 
-const pereodic = new class {
+const ActSynchronizer = new class {
   doingAct;
   doneActList;
   calendarId;
-  registeredJob;
   constructor() {
     Store.onChange(storeKeys.isSignedIn, this);
     Store.onChange(storeKeys.settings, this);
@@ -4633,29 +4706,24 @@ const pereodic = new class {
         break;
       case storeKeys.isSignedIn:
         if (value) {
-          this.registeredJob = this.periodicProc.bind(this);
-          this.periodicProc.bind(this)();
-          Cron.add(60_000, this.registeredJob);
-        } else {
-          Cron.remove(60_000, this.registeredJob);
+          this.synchronize();
         }
         break;
       default:
     }
   }
-  periodicProc() {
-    Queue.add(() => {
+  synchronize() {
+    Queue.add(async () => {
       if (this.doingAct) {
         if (this.doingAct.isSynced) {
           // check if doingTask has been done
-          return this.checkDone();
+          await this.checkDone();
         } else {
           // doingTask haven't been synced yet, so try to sync.
-          return this.syncDoingAct(this.doingAct);
+          await this.syncDoingAct(this.doingAct);
         }
-      } else {
-        return this.checkDoing();
       }
+      await this.checkDoing();
     });
   }
   checkDone() {
@@ -4666,7 +4734,6 @@ const pereodic = new class {
           this.doingAct.description = res.result.description;
           this.doingAct.end = (new Date(res.result.end.dateTime)).getTime();
           postEndProc(this.doneActList, this.doingAct);
-          return this.checkDoing();
         }
       })
       .catch(handleRejectedCommon);
@@ -4679,27 +4746,31 @@ const pereodic = new class {
     })
       .then(res => {
         console.log(res);
-        const resDoingAct = res.result.items.find(item =>
-          item.start.dateTime && item.end.dateTime && item.start.dateTime == item.end.dateTime);
-        if (resDoingAct) {
-          if (this.doneActList) {
-            const unsyncedAct = this.doneActList.find(act => act.id === resDoingAct.id);
-            if (unsyncedAct) {
-              return this.syncDoneAct(unsyncedAct);
+        res.result.items
+          .filter(item => item.start.dateTime && item.end.dateTime && item.start.dateTime == item.end.dateTime)
+          .forEach(resDoingAct => {
+            if (resDoingAct.id == this.doingAct.id) {
+              return;
+            } else {
+              if (this.doneActList) {
+                const unsyncedAct = this.doneActList.find(act => act.id === resDoingAct.id);
+                if (unsyncedAct) {
+                  return this.syncDoneAct(unsyncedAct);
+                }
+              }
+              const newAct = new Act({
+                isSynced: true,
+                start: new Date(resDoingAct.start.dateTime).getTime(),
+                end: new Date(resDoingAct.end.dateTime).getTime(),
+                id: resDoingAct.id,
+                summary: resDoingAct.summary,
+                description: resDoingAct.description,
+                link: resDoingAct.htmlLink,
+                colorId: resDoingAct.colorId
+              });
+              Store.set(storeKeys.anotherAct, newAct);
             }
-          }
-          const newAct = new Act({
-            isSynced: true,
-            start: new Date(resDoingAct.start.dateTime).getTime(),
-            end: new Date(resDoingAct.end.dateTime).getTime(),
-            id: resDoingAct.id,
-            summary: resDoingAct.summary,
-            description: resDoingAct.description,
-            link: resDoingAct.htmlLink,
-            colorId: resDoingAct.colorId
-          });
-          return this.startNewAct(newAct);
-        }
+          })
       })
       .catch(handleRejectedCommon)
   }
@@ -4722,11 +4793,6 @@ const pereodic = new class {
         idb.save(storeKeys.doneActList);
       })
       .catch(handleRejectedCommon);
-  }
-  startNewAct(act) {
-    Store.set(storeKeys.doingAct, act);
-    Store.set(storeKeys.summaryToView, act.summary);
-    Store.set(storeKeys.descriptionToView, act.description);
   }
   syncDoingAct(act) {
     return API.insertEvent({
