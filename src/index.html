@@ -113,12 +113,20 @@
   </svg>
   <!-- << icons -->
   <section style="height:100%">
-    <nav class="navbar is-fixed-top">
+    <nav class="main_nav navbar is-fixed-top is-flex">
       <div class="navbar-brand is-pulled-left">
         <img src="img/logo.svg" width="110px">
       </div>
-      <div class="navbar-menu is-active is-shadowless p-2">
-        <div class="navbar-end  is-flex is-flex-direction-row-reverse">
+      <div class="navbar-menu is-active is-shadowless p-2 is-flex is-justify-content-space-between is-flex-grow-1">
+        <div class="navbar-start">
+          <another-act>
+            <button data-action="open" class="button px-2 is-rounded has-text-danger">
+              <svg width="10" height="10"><use xlink:href="#icon-plus"></use></svg>
+              <svg width="16" height="16"><use xlink:href="#icon-accessibility"></use></svg>
+            </button>
+          </another-act>
+        </div>
+        <div class="navbar-end">
           <settings-modal class="mx-3 pt-1">
             <svg data-action="open" class="icon is-clickable" fill="#AAA"><use xlink:href="#icon-cog"></use></svg>
           </settings-modal>
