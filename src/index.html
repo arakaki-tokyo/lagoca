@@ -109,12 +109,12 @@
   <!-- << icons -->
   <section style="height:100%">
     <nav class="main_nav navbar is-fixed-top is-flex">
-      <div class="navbar-brand is-pulled-left">
+      <div class="navbar-brand">
         <img src="img/logo.svg" width="110px">
       </div>
       <div class="navbar-menu is-active is-shadowless p-2 is-flex is-justify-content-space-between is-flex-grow-1">
         <div class="navbar-start">
-          <another-act style="transform: translateY(-50px);">
+          <another-act class="ce-block" style="transform: translateY(-50px);">
             <button data-action="open" class="button px-2 is-rounded has-text-danger">
               <svg width="10" height="10"><use xlink:href="#icon-plus"></use></svg>
               <svg width="16" height="16"><use xlink:href="#icon-accessibility"></use></svg>
@@ -122,16 +122,16 @@
           </another-act>
         </div>
         <div class="navbar-end">
-          <settings-modal class="mx-3 pt-1">
+          <settings-modal class="mx-3 pt-1 is-relative ce-block">
             <svg data-action="open" class="icon is-clickable" fill="#AAA"><use xlink:href="#icon-cog"></use></svg>
           </settings-modal>
         </div>
       </div>
     </nav>
-    <tab-swipeable id="main">
+    <tab-swipeable id="main" class="ce-block" data-column="1">
       <div id="tab" class="tabs is-boxed">
         <ul class="has-background-white">
-          <li data-tab="page0"><a>
+          <li data-tab="page0" class="is-hidden"><a>
               <svg class="icon"><use xlink:href="#icon-tool"></use></svg>
               <span class="tab_text">Routine</span>
           </a></li>
@@ -143,14 +143,14 @@
               <svg class="icon"><use xlink:href="#icon-quill"></use></svg>
               <span class="tab_text">Diary</span>
           </a></li>
-          <li data-tab="page3" class=""><a>
+          <li data-tab="page3" class="is-hidden"><a>
               <svg class="icon"><use xlink:href="#icon-tasks"></use></svg>
               <span class="tab_text">ToDo</span>
           </a></li>
         </ul>
       </div>
       <div id="view">
-        <div data-page="page0" class="page card has-background-white-ter is-shadowless">
+        <div data-page="page0" class="page card has-background-white-ter is-shadowless is-hidden">
           <header class="card-header">
             <p class="card-header-title has-text-link-dark p-2">
               <svg class="icon mr-2"><use xlink:href="#icon-tool"></use></svg>
@@ -199,9 +199,14 @@
           <div class="card-content p-2">
             <div id="doing" class="is-clearfix block">
               <input type="text" is="act-summary" class="input" placeholder="title">
-              <act-description class="quill_holder" placeholder="description"></act-description>
+              <act-description class="quill_holder" placeholder="description">
+                <div class="ql-toolbar ql-snow" style='height: 36px;'></div>
+                <div class="ql-container">
+                  <textarea class="ql-editor textarea has-fixed-size" placeholder="description"></textarea>
+                </div>
+              </act-description>
               <div class="is-pulled-left">
-                <time-elapsed class="is-size-1 has-text-weight-bold mx-1"></time-elapsed>
+                <time-elapsed class="is-size-1 has-text-weight-bold mx-1">00:00:00</time-elapsed>
               </div>
               <div class="is-pulled-right">
                 <button is="act-end" class="button is-danger is-large has-text-weight-bold m-1 is-hidden"><svg class="icon" fill="#DDD"><use xlink:href="#icon-stop"></use></svg></button>
@@ -210,7 +215,7 @@
             </div>
             <div class="act_lists_container">
               <input type="radio" id="upcoming_radio" name="which_to_show">
-              <upcoming-act-list class="act_list card is-hidden">
+              <upcoming-act-list class="act_list card is-hidden ce-block">
                 <header class="card-header">
                   <label class="card-header-title p-1 pl-3" for="upcoming_radio">今日このあとの予定</label>
                 </header>
@@ -231,7 +236,7 @@
                 </div>
               </upcoming-act-list>
               <input type="radio" id="done_radio" name="which_to_show" checked>
-              <done-act-list class="act_list card">
+              <done-act-list class="act_list card ce-block">
                 <header class="card-header">
                   <label class="card-header-title p-1 pl-3" for="done_radio">最近の活動</label>
                 </header>
@@ -276,7 +281,7 @@
             </div>
           </div>
         </div>
-        <div data-page="page3" class="page card has-background-white-ter is-shadowless">
+        <div data-page="page3" class="page is-hidden card has-background-white-ter is-shadowless">
           <header class="card-header is-shadowless">
             <p class="card-header-title has-text-link-dark p-2">
               <svg class="icon mr-2"><use xlink:href="#icon-tasks"></use></svg>
