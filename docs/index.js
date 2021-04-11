@@ -1252,7 +1252,6 @@ class TabSwipeable extends HTMLElement {
   scrollHandler;
   constructor() {
     super();
-    this.style.display = "block";
     this.tabs = {};
     this.scrollHandler = this._scrollHandler.bind(this);
     Store.onChange(storeKeys.settings, this);
@@ -1341,7 +1340,6 @@ class AnotherAct extends HTMLElement {
   _act;
   _transformValue;
   connectedCallback() {
-    this.style.display = "block";
     Store.onChange(storeKeys.anotherAct, this);
     Store.onChange(storeKeys.doingAct, this);
     this.innerHTML += `
@@ -1557,8 +1555,6 @@ class SettingsModal extends HTMLElement {
         </div>
       </div>
     `;
-    this.style.display = "block";
-    this.style.position = "relative";
     this.querySelectorAll("[data-role]").forEach(elm => {
       this[`${elm.dataset.role}`] = elm;
     })
@@ -2010,6 +2006,7 @@ class Description extends HTMLElement {
   }
   connectedCallback() {
     const editorContainer = document.createElement("div");
+    this.innerHTML = "";
     this.appendChild(editorContainer);
     this.quill = new Quill(editorContainer, {
       modules: {
@@ -2230,7 +2227,6 @@ class TimeElapsed extends HTMLElement {
   doingAct;
   registeredJob;
   connectedCallback() {
-    this.init();
     Store.onChange(storeKeys.doingAct, this);
   }
   /**
@@ -2303,10 +2299,6 @@ class DoneActList extends HTMLElement {
   doingAct = null;
   listContainer;
   tmpl;
-  constructor() {
-    super();
-    this.style.display = "block";
-  }
   connectedCallback() {
     Store.onChange(storeKeys.isSignedIn, this);
     Store.onChange(storeKeys.doingAct, this);
@@ -2490,10 +2482,6 @@ class UpcomingActList extends HTMLElement {
   listContainer;
   tmpl;
 
-  constructor() {
-    super();
-    this.style.display = "block";
-  }
   connectedCallback() {
     Store.onChange(storeKeys.doingAct, this);
     Store.onChange(storeKeys.settings, this);
@@ -2571,7 +2559,6 @@ class ToolTip extends HTMLElement {
   constructor() {
     super();
     this.style.cursor = "help";
-    this.style.position = "relative";
   }
   connectedCallback() {
     this.attachShadow({ mode: 'open' }).innerHTML = `
@@ -3625,8 +3612,7 @@ class TaskItem extends HTMLElement {
   }
   get task() { return this._task; }
   init(task) {
-    this.classList.add("p-0", "task_item", task.parent ? "sub" : "parent");
-    this.style.display = "block";
+    this.classList.add("p-0", "task_item", task.parent ? "sub" : "parent", "ce-block");
 
     this.task = task;
     this.innerHTML = this._render(task);
