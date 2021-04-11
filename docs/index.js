@@ -217,7 +217,7 @@ const idb = new class {
   _getAll(store, key) {
     return this.db.then(db => {
       const objectStore = db.transaction(store, "readonly").objectStore(store);
-      const req = key ? objectStore.getAll(key) : objectStore.getAll();
+      const req = key !== undefined ? objectStore.getAll(key) : objectStore.getAll();
       return new Promise((resolve, reject) => {
         req.onsuccess = (ev) => resolve(ev.target.result);
         req.onerrors = (ev) => reject(ev);
@@ -227,7 +227,7 @@ const idb = new class {
   _getIndexAll(store, index, key) {
     return this.db.then(db => {
       const idx = db.transaction(store, "readonly").objectStore(store).index(index);
-      const req = key ? idx.getAll(key) : idx.getAll();
+      const req = key !== undefined ? idx.getAll(key) : idx.getAll();
       return new Promise((resolve, reject) => {
         req.onsuccess = (ev) => resolve(ev.target.result);
         req.onerrors = (ev) => reject(ev);
@@ -238,7 +238,7 @@ const idb = new class {
   _getAllKV(store, key) {
     return this.db.then(db => {
       const objectStore = db.transaction(store, "readonly").objectStore(store);
-      const req = key ? objectStore.openCursor(key) : objectStore.openCursor();
+      const req = key !== undefined ? objectStore.openCursor(key) : objectStore.openCursor();
       return new Promise((resolve, reject) => {
         const KV = [];
         req.onsuccess = (ev) => {
