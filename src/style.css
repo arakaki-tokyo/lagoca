@@ -201,9 +201,14 @@ tab-swipeable {
     height: calc(100% - 40px) !important;
   }
   .page[data-page="page1"] {
+    display: flex;
+    flex-direction: column;
     position: initial;
     height: calc(100% - var(--mx-page));
     width: calc(5 / 12 * 100% - 0.5%);
+  }
+  .page[data-page="page1"] > .card-content {
+    flex-grow: 1;
   }
 
   .page[data-page="page2"] {
@@ -371,6 +376,8 @@ input[name="which_to_show"]:checked + .act_list > header {
   }
   .act_list {
     position: initial !important;
+  }
+  upcoming-act-list {
     margin-bottom: 1rem !important;
   }
   input[name="which_to_show"] + .act_list > header {
