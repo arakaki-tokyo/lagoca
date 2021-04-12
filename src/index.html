@@ -12,6 +12,15 @@
   <script defer src="index.js" onload="appInit()"></script>
   <script defer src="https://apis.google.com/js/api.js" onload="handleClientLoad()"></script>
   <link rel="stylesheet" href="style.css">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XZMZX0QLP7"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-XZMZX0QLP7');
+  </script>
 </head>
 
 <body>
@@ -190,7 +199,7 @@
           </div>
         </div>
         <div data-page="page1" class="page card has-background-white-ter is-shadowless">
-          <header class="card-header">
+          <header class="card-header is-shadowless">
             <p class="card-header-title has-text-link-dark p-2">
               <svg class="icon mr-2"><use xlink:href="#icon-accessibility"></use></svg>
               <span class="">Activities</span>

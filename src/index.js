@@ -3602,12 +3602,17 @@ class TaskItem extends HTMLElement {
   set task(task) {
     this._task = task;
     this.id = task.id;
+    this.mainArea.innerHTML = this._renderMain(this.task);
+    if (this.radio) {
+      this.radio.id = `radio${task.id}`;
+    }
   }
   get task() { return this._task; }
   init(task) {
     this.classList.add("p-0", "task_item", task.parent ? "sub" : "parent", "ce-block");
 
-    this.task = task;
+    this._task = task;
+    this.id = task.id;
     this.innerHTML = this._render(task);
     this._updateContent();
 
@@ -3725,7 +3730,6 @@ class TaskItem extends HTMLElement {
       action: SyncAction.INSERT
     });
     this.newSubTaskTitle.value = "";
-    idb.setTask(newSubTask);
     const newTaskItem = document.createElement("task-item");
     newTaskItem.init(newSubTask);
     ToDoUtils.insertTask(newSubTask, newTaskItem);
@@ -3753,7 +3757,6 @@ class TaskItem extends HTMLElement {
     if (this.task.listId === updatedTask.listId) {
       ToDoUtils.updateTask(updatedTask);
       this.task = updatedTask;
-      this.mainArea.innerHTML = this._renderMain(this.task);
     } else {
       const res = confirm("LoGoCaでリンク付きのタスクを移動すると、リンクの情報が破棄されます。\n続行しますか？");
       if (res) {
@@ -4015,18 +4018,19 @@ class ToDoTasks extends HTMLElement {
     taskItem.init(task);
     return taskItem;
   }
-  _add() {
+  async _add() {
     const newTask = new Task({
       id: Date.now().toString(),
       listId: this.currentListId,
       title: this.newTaskTitle.value,
+      position: 0,
       action: SyncAction.INSERT
     });
     this.newTaskTitle.value = "";
     const newTaskItem = this._renderContent(newTask);
-    ToDoUtils.insertTask(newTask, newTaskItem);
     this.taskItems.push(newTaskItem);
     this.container.insertAdjacentElement('afterbegin', newTaskItem);
+    await ToDoUtils.insertTask(newTask, newTaskItem);
     this._updateOrder();
   }
   _updateOrder(e) {
