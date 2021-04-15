@@ -1,21 +1,33 @@
-var path = require("path");
+const path = require("path");
+const glob = require('glob');
+const TerserPlugin = require('terser-webpack-plugin');
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
+const PurgecssPlugin = require('purgecss-webpack-plugin');
 
 const src = 'src';
 const dist = 'docs';
-const entryJS = 'bundle_css.js';
+const indexJS = 'index.js';
 
 module.exports = {
   mode: "production",
-  entry: `./${src}/${entryJS}`,
+  entry: {
+    index: `./${src}/${indexJS}`,
+    sw: `./${src}/sw.js`,
+  },
   output: {
     path: `${__dirname}/${dist}`,
-    filename: entryJS,
+    filename: '[name].js',
+  },
+  devServer: {
+    host: '0.0.0.0',
+    contentBase: `${__dirname}/${dist}`
   },
   optimization: {
     minimizer: [
-      `...`,
+      new TerserPlugin({
+        extractComments: false,
+      }),
       new CssMinimizerPlugin({
         sourceMap: true,
       })
@@ -23,6 +35,10 @@ module.exports = {
   },
   module: {
     rules: [
+      {
+        test: /\.js$/,
+        use: { loader: 'babel-loader' }
+      },
       {
         test: /\.css$/,
         use: [
@@ -35,6 +51,12 @@ module.exports = {
   plugins: [
     new MiniCssExtractPlugin({
       filename: "style.css",
+    }),
+    new PurgecssPlugin({
+      paths: [
+        ...glob.sync(`./${src}/**/*`, { nodir: true }),
+        "./node_modules/quill/dist/quill.min.js"
+      ],
     }),
   ]
 };
