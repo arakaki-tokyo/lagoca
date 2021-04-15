@@ -1,0 +1,20 @@
+module.exports = {
+  userProfile: "usrProfile",
+  calendars: "calendars",
+  settings: "settings",
+  tmpNewCalendar: "tmpNewCalendar",
+  isAddCalInProgress: "isAddCalInProgress",
+  addedCalendar: "addedCalendar",
+  summaryFromView: "summaryFromView",
+  summaryToView: "summaryToView",
+  descriptionFromView: "descriptionFromView",
+  descriptionToView: "descriptionToView",
+  doingAct: "doingAct",
+  isSignedIn: "isSignedIn",
+  notice: "notice",
+  doneActList: "doneActList",
+  sw: "sw",
+  toBeStartedAct: "toBeStartedAct",
+  listInserted: "listInserted",
+  anotherAct: "anotherAct"
+};
