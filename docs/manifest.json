@@ -1,0 +1,31 @@
+{
+  "name": "LoGoCa",
+  "short_name": "LoGoCa",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#004422",
+  "description": "Google Calendar client, specialized in recording activities",
+  "icons": [
+    {
+      "src": "img/logo48.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "img/logo72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "img/logo192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "img/logo512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
