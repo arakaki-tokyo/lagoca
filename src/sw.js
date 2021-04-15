@@ -1,3 +1,5 @@
+const idb = require('./idb');
+
 // badge is mostly the same as favicon.ico
 const badge = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADIklEQVRYR7WXSciOURTHf1+ykDkkRMiwUDJGmcu0IBsUyVCfLCxMWSEUVuawQBlKilJYoIhMkTkrMylCSSgslP517tf97nfvc5/30Xfq6X3f557hf8859/zvW0d1uQr0M/PDwOYqruqqGAEKfgw4avaLgUXApFr9VQHQE3gIdAmCfQGGAe9rAVEFwGRgLLApCKTfN4HLzQ2gI/AVuAa0ANwmBKor8Lm5Acj/GmAGMNGC3QbOADtqCS7dKiVwMdSIfYHWwNMqDfi/ANzuHSCVJCa9gNnAzthirRkYAMy09HcHugF/gGfAC+CdHc23XrDrwDhgL7AiBFEWQCtgnT25Mn8zEJoTa4H5ZrAU0MBqJGUAzLLAI3ORI+tzgaHAX2BDlRLMAU4FhsdtJ5+A9taE+hRAPVMDfYE4nQJflIEw+ANgPXDRc6bsSM567+ZZrUcFeudqycAQ4JFncAlYAnwMnOid5EjEuYBOs/dqxAm1ANgFrDQDHa8Uyaw2ndgR0wk5Dww3HfnbU6YJe9vuO5iygqfO+BbTUWliMh24YAsiKYERaTVIrAdEKhtNQxwfko5vv99+LE8A0Gsdx4We3oEcANVT/C5ZAJwocH7S1tR4KdEQUg9ImpQzlgFR6hgzGA3cLXCu5pS4ZoupanpqUkqeAwNzGVCNOptSJ6PemGPV874tjAB0TGPSFvhuCz+AdjkAUpaRRJ8/E45FRmJESVGjajOu8XSP0KYaJFYCpUtpk/QHXiYA6LU7YqndS0flVFklKqfKWghAu3JUOx64UQCgzJIa2g0qNbQauxBAPXDINA4Cy8pEKdDxj7W+N7q+x0rQB3jtOSxqsBw2v09E02JG/66QvJJtt3ufAojJxGhVxC/nbmBV6CTFhprjtwBlowqIHlb3KV5A7f5xWQDS03jd5xloiql+KV5wqpr/2yzd7l3yTpC7EYnBxIy+CMQT4I5Hz22Awdawbu5ng0shB0A6/jEKM/gK+A0MijTIPWBrcFlpolYGgIx0QdGfT4FxNF3UlAqs51euc8sCcH50VxAQTUj9NddnSyvFB2POK8CbXGC3/g+a3Y4hi31FMAAAAABJRU5ErkJggg==";
 // icon is the same as img/logo72.png
@@ -65,7 +67,7 @@ const notificationClickHandler = new class {
     } else {
       // save to indexedDB
       let toBeEndedAct;
-      await idb.update("App", "doingAct", ({ key, value }) => {
+      await idb.updateApp("doingAct", ({ key, value }) => {
         toBeEndedAct = { ...value };
         return { key, value: null };
       });
@@ -73,15 +75,15 @@ const notificationClickHandler = new class {
       toBeEndedAct.end = Date.now();
       const [h, m, s] = this.calcElapsedTime(toBeEndedAct.start, toBeEndedAct.end);
       const elapsedTime = `${h == 0 ? "" : h + "h"}${m}m`;
-      await idb.update("App", "summaryToView", ({ key, value }) => {
+      await idb.updateApp("summaryToView", ({ key, value }) => {
         toBeEndedAct.summary = `${value} (${elapsedTime})`
         return { key, value: "" };
       });
-      await idb.update("App", "descriptionToView", ({ key, value }) => {
+      await idb.updateApp("descriptionToView", ({ key, value }) => {
         toBeEndedAct.description = value;
         return { key, value: "" };
       });
-      return await idb.update("App", "doneActList", ({ key, value }) => {
+      return await idb.updateApp("doneActList", ({ key, value }) => {
         value.push(toBeEndedAct);
         return { key, value };
       });
@@ -184,40 +186,4 @@ const cacheHandler = new class {
         .then(res => res || fetch(e.request))
     );
   }
-}
-const idb = new class {
-  db;
-  constructor() {
-    this.db = new Promise(resolve => {
-      indexedDB.open("logoca", 1).onsuccess = ev => {
-        resolve(ev.target.result);
-      }
-    })
-  }
-  set(store, obj) {
-    return this.db.then(db => {
-      const req = db.transaction(store, "readwrite").objectStore(store).put(obj);
-      return new Promise((resolve, reject) => {
-        req.onsuccess = (ev) => resolve(ev.target.result);
-        req.onerrors = (ev) => reject(ev);
-      })
-    });
-  }
-  update(store, key, f) {
-    return this.db.then(db => {
-      const req = db.transaction(store, "readwrite").objectStore(store).openCursor(key);
-      return new Promise((resolve, reject) => {
-        req.onsuccess = (ev) => {
-          const cursor = ev.target.result;
-          if (cursor) {
-            cursor.update(f(cursor.value)).onsuccess = () => resolve(undefined);
-          } else {
-            this[`set${store}`](f()).then(() => resolve(undefined));
-          }
-        };
-        req.onerrors = (ev) => reject(ev);
-      })
-    });
-  }
-
 }
