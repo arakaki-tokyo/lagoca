@@ -195,7 +195,7 @@ const gapi = {
                                         return "/testing/photo.png"
                                     },
                                     getEmail: () => {
-                                        return "at.renew@gmail.com"
+                                        return "arakaki.tokyo@gmail.com"
                                     }
                                 }
                             }
