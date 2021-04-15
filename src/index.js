@@ -2467,15 +2467,21 @@ class DiaryContainer extends HTMLDivElement {
     switch (key) {
       case storeKeys.settings:
         this.calendarId = value.logCalendarId;
-      // don't break
+        this.diaryEnabled = value.diaryEnabled;
+        this._synchronize();
+        break;
       case storeKeys.isSignedIn:
         this[key] = value;
         this.linkButton.style.visibility = value ? "visible" : "hidden";
-        if (this.isSignedIn && this.settings.diaryEnabled) {
-          await this.fetch();
-          this.checkUnsynced();
-        }
-
+        this._synchronize();
+        break;
+      default:
+    }
+  }
+  async _synchronize() {
+    if (this.isSignedIn && this.diaryEnabled) {
+      await this.fetch();
+      this.checkUnsynced();
     }
   }
   dateChange(date) {
