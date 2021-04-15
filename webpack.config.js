@@ -10,7 +10,7 @@ const dist = 'docs';
 const indexJS = 'index.js';
 
 module.exports = {
-  mode: "development",
+  mode: "production",
   entry: {
     index: `./${src}/${indexJS}`,
     sw: `./${src}/sw.js`,
