@@ -4430,7 +4430,7 @@ const titleManager = new class {
     this.iconParts.forEach(e => e.style.fill = color);
     this.favicon.href = `data:image/svg+xml,${encodeURIComponent(this.svgContainer.innerHTML)}`;
 
-    this.title.innerHTML = `${this.summaryFromView} (${this.doingAct.elapsedTime}) | ${this.titleTextOrg}`;
+    this.title.innerHTML = `${this.summaryFromView} (${this.doingAct.elapsedTime}) | LoGoCa`;
   }
 }
 
