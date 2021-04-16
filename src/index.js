@@ -1195,7 +1195,7 @@ class SettingsModal extends HTMLElement {
         <div data-action="close" class="modal-background"></div>
         <div class="modal-card">
           <header class="modal-card-head p-3">
-            <p class="modal-card-title is-size-6 has-text-weight-bold">設定</p>
+            <p class="modal-card-title is-size-6 has-text-weight-bold">設定　<a class="is-size-7" href="privacy.md" style="display:inline-flex" target="_blank" rel="noreferrer"><span>利用規約・プライバシーポリシー</span><svg width="16" height="16"><use xlink:href="#icon-link"></use></svg></a></p>
             <button data-action="close" class="delete" aria-label="close"></button>
           </header>
           <section class="modal-card-body">
@@ -1925,10 +1925,10 @@ class ActEnd extends HTMLButtonElement {
             handleRejectedCommon(err);
           })
           .then(() => {
-            postEndProc(this.doneActList, toBeEndedAct);
+            updateDoneActList(this.doneActList, toBeEndedAct);
           });
       } else {
-        postEndProc(this.doneActList, toBeEndedAct);
+        updateDoneActList(this.doneActList, toBeEndedAct);
       }
     });
   }
@@ -2461,15 +2461,21 @@ class DiaryContainer extends HTMLDivElement {
     switch (key) {
       case storeKeys.settings:
         this.calendarId = value.logCalendarId;
-      // don't break
+        this.diaryEnabled = value.diaryEnabled;
+        this._synchronize();
+        break;
       case storeKeys.isSignedIn:
         this[key] = value;
         this.linkButton.style.visibility = value ? "visible" : "hidden";
-        if (this.isSignedIn && this.settings.diaryEnabled) {
-          await this.fetch();
-          this.checkUnsynced();
-        }
-
+        this._synchronize();
+        break;
+      default:
+    }
+  }
+  async _synchronize() {
+    if (this.isSignedIn && this.diaryEnabled) {
+      await this.fetch();
+      this.checkUnsynced();
     }
   }
   dateChange(date) {
@@ -4238,14 +4244,13 @@ function updateUserProfile() {
     new User({ imgSrc: userBasicProfile.getImageUrl(), email: userBasicProfile.getEmail() })
   );
 }
-function postEndProc(doneActList, doneAct) {
+function updateDoneActList(doneActList, doneAct) {
   const listPtr = doneActList ? doneActList : [];
   listPtr.push({ ...doneAct });
   if (listPtr.length > 20) {
     listPtr.shift();
   }
   Store.set(storeKeys.doneActList, listPtr);
-  Store.set(storeKeys.doingAct, null);
 }
 /**
  *
@@ -4408,7 +4413,7 @@ const titleManager = new class {
     this.iconParts.forEach(e => e.style.fill = color);
     this.favicon.href = `data:image/svg+xml,${encodeURIComponent(this.svgContainer.innerHTML)}`;
 
-    this.title.innerHTML = `${this.summaryFromView} (${this.doingAct.elapsedTime}) | ${this.titleTextOrg}`;
+    this.title.innerHTML = `${this.summaryFromView} (${this.doingAct.elapsedTime}) | LoGoCa`;
   }
 }
 
@@ -4461,7 +4466,8 @@ const ActSynchronizer = new class {
           this.doingAct.summary = res.result.summary;
           this.doingAct.description = res.result.description;
           this.doingAct.end = (new Date(res.result.end.dateTime)).getTime();
-          postEndProc(this.doneActList, this.doingAct);
+          updateDoneActList(this.doneActList, this.doingAct);
+          Store.set(storeKeys.doingAct, null);
         }
       })
       .catch(handleRejectedCommon);
