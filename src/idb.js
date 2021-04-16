@@ -142,8 +142,6 @@ module.exports = new class {
   }
 
   _set(store, obj) {
-    console.log(store);
-    console.dir(obj);
     return this.db.then(db => {
       const req = db.transaction(store, "readwrite").objectStore(store).put(obj);
       return new Promise((resolve, reject) => {

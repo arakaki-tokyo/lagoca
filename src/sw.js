@@ -40,7 +40,6 @@ const notificationClickHandler = new class {
     addEventListener('notificationclick', this.click.bind(this));
   }
   click(e) {
-    console.dir(e);
     e.notification.close();
     const proc = (e.action === 'end') ? this.endAct.bind(this) : this.showPage;
 
@@ -99,7 +98,7 @@ const notificationClickHandler = new class {
 const cacheHandler = new class {
   cacheItems = [
     {
-      version: "11",
+      version: "12",
       urls: [
         "/index.js",
       ]
