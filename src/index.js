@@ -1930,10 +1930,10 @@ class ActEnd extends HTMLButtonElement {
             handleRejectedCommon(err);
           })
           .then(() => {
-            postEndProc(this.doneActList, toBeEndedAct);
+            updateDoneActList(this.doneActList, toBeEndedAct);
           });
       } else {
-        postEndProc(this.doneActList, toBeEndedAct);
+        updateDoneActList(this.doneActList, toBeEndedAct);
       }
     });
   }
@@ -4259,14 +4259,13 @@ function updateUserProfile() {
     new User({ imgSrc: userBasicProfile.getImageUrl(), email: userBasicProfile.getEmail() })
   );
 }
-function postEndProc(doneActList, doneAct) {
+function updateDoneActList(doneActList, doneAct) {
   const listPtr = doneActList ? doneActList : [];
   listPtr.push({ ...doneAct });
   if (listPtr.length > 20) {
     listPtr.shift();
   }
   Store.set(storeKeys.doneActList, listPtr);
-  Store.set(storeKeys.doingAct, null);
 }
 /**
  *
@@ -4483,7 +4482,8 @@ const ActSynchronizer = new class {
           this.doingAct.summary = res.result.summary;
           this.doingAct.description = res.result.description;
           this.doingAct.end = (new Date(res.result.end.dateTime)).getTime();
-          postEndProc(this.doneActList, this.doingAct);
+          updateDoneActList(this.doneActList, this.doingAct);
+          Store.set(storeKeys.doingAct, null);
         }
       })
       .catch(handleRejectedCommon);
