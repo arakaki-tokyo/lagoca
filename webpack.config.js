@@ -55,6 +55,7 @@ module.exports = {
     new PurgecssPlugin({
       paths: [
         ...glob.sync(`./${src}/**/*`, { nodir: true }),
+        ...glob.sync(`./${dist}/**/*`, { nodir: true }),
         "./node_modules/quill/dist/quill.min.js"
       ],
     }),
