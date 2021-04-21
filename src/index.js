@@ -1197,10 +1197,13 @@ class SettingsModal extends HTMLElement {
         <div data-action="close" class="modal-background"></div>
         <div class="modal-card">
           <header class="modal-card-head p-3">
-            <p class="modal-card-title is-size-6 has-text-weight-bold">設定　<a class="is-size-7" href="privacy" style="display:inline-flex" target="_blank" rel="noreferrer"><span>利用規約・プライバシーポリシー</span><svg width="16" height="16"><use xlink:href="#icon-link"></use></svg></a></p>
+            <p class="modal-card-title is-size-6 has-text-weight-bold">設定</p>
             <button data-action="close" class="delete" aria-label="close"></button>
           </header>
           <section class="modal-card-body">
+            <p><a class="is-size-7" href="howto" style="display:inline-flex" target="_blank" rel="noreferrer"><span>使い方</span><svg width="16" height="16"><use xlink:href="#icon-link"></use></svg></a></p>
+            <p><a class="is-size-7" href="privacy" style="display:inline-flex" target="_blank" rel="noreferrer"><span>利用規約・プライバシーポリシー</span><svg width="16" height="16"><use xlink:href="#icon-link"></use></svg></a></p>
+            <hr>
             <div data-state="logedout">
               <button data-action="signin" class="button is-link">Googleアカウントにサインイン</button>
             </div>
