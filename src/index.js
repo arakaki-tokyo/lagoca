@@ -3532,13 +3532,14 @@ class TaskItem extends HTMLElement {
       ToDoUtils.updateTask(updatedTask);
       this.task = updatedTask;
     } else {
-      const res = confirm("LoGoCaでリンク付きのタスクを移動すると、リンクの情報が破棄されます。\n続行しますか？");
-      if (res) {
-        updatedTask.position = - Date.now();
-        ToDoUtils.transferTask(this.task, updatedTask);
-        this._animateNext();
-        this.remove();
+      if (this.task.links) {
+        const beContinued = confirm("LoGoCaでリンク付きのタスクを移動すると、リンクの情報が破棄されます。\n続行しますか？");
+        if (!beContinued) return;
       }
+      updatedTask.position = - Date.now();
+      ToDoUtils.transferTask(this.task, updatedTask);
+      this._animateNext();
+      this.remove();
     }
   }
   _updateContent() {
